@@ -3,7 +3,7 @@
 #ifndef SIMULATE //real world code requires more things which all of which are not included in protolib simulation code
 Nrlolsr::Nrlolsr(ProtoDispatcher& theDispatcher, ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
  : socket(ProtoSocket::UDP), mac_control_socket(ProtoSocket::UDP),
-   recvPipe(ProtoPipe::MESSAGE) , smf_pipe(ProtoPipe::MESSAGE) , gui_pipe(ProtoPipe::MESSAGE)
+   recvPipe(ProtoPipe::MESSAGE) , smf_pipe(ProtoPipe::MESSAGE) , gui_pipe(ProtoPipe::MESSAGE) , sdt_pipe(ProtoPipe::MESSAGE)
 #ifdef SMF_SUPPORT
    , cap_rcvr(NULL)
 #endif // SMF_SUPPORT
@@ -15,8 +15,9 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
 #ifndef SIMULATE //simulation does not have dispatcher
 	dispatcher = &theDispatcher;
 #endif
+  isRunning = false;
+  isSleeping = false;
   timerMgrPtr = &theTimer;
-   
   socket.SetNotifier(&theNotifier); 
   socket.SetListener(this,&Nrlolsr::OnSocketEvent);
 
@@ -34,9 +35,11 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
   updateSmfForwardingInfo = false; //set to true when mpr selector list changes and send at end of parcing hello message which changed mpr selector list
   floodingType = SMPR;  //default forwarding engine is set to source based mpr flooding.
   localNodeIsForwarder=false;
+  localNodeIsForwarder_old=false; //don't need to print anything out till the local node is a forwarder.  This variable is only used with sdt messaging
   floodingOn = true;//set to true when flooding command is used
   fastreroute = true;
   unicastRouting = true;
+  SDTOn = false;
   //DMSG(6,"Enter: Nrlolsr::Nrlolsr()\n");
 
   Neighb_Hold_Time = 6.0; //is default value changed on Start();
@@ -67,7 +70,8 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
   HNA_Interval=15.0;
   HNA_Timeout_Factor=90;
   HNA_Jitter=.1;
-  
+  localHnaRouteTable.Init();
+
   //forwarding delay
   fdelay = 0;
 
@@ -81,9 +85,13 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
 
 
   //default state
+  olsr_port_number = 698;
   noerrors = 1;
   allLinks=false;
-
+  
+  helloUseUnicast=false;
+  helloUseUnicastOpt=false;
+  helloSentBcastOnly=0;
   
   tcSlowDown=false;
   tcSlowDownFactor=1; //factor of how much slower tcs are being sent
@@ -125,6 +133,10 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
     //DMSG(6,"Exit: Nrlolsr::Nrlolsr()\n");
   delayed_forward_timer.SetListener(this,&Nrlolsr::OnDelayedForwardTimeout);
   
+  delay_smf_off_timer.SetListener(this,&Nrlolsr::OnDelaySmfOffTimeout);
+ 
+  static_run_timer.SetListener(this,&Nrlolsr::OnStaticRunTimeout); 
+  static_run_timer.SetInterval(0);
   // LP 8-30-05 - added
 #ifdef OPNET
   total_Hello_sent =  total_Hello_rcv = total_TC_sent = total_TC_rcv = 0;
@@ -173,6 +185,20 @@ Nrlolsr::SetOlsrIPv4(bool ipv4mode){
 }   
 
 bool
+Nrlolsr::SetOlsrPort(int portnumber){
+  if(socket.IsOpen()){
+    broadAddr.SetPort(portnumber);
+    olsr_port_number=portnumber;
+    if(!(socket.Bind(olsr_port_number))){
+      DMSG(0,"Nrlolsr::SetOlsrPort error setting socket to port %d\n",portnumber);
+      return false;
+    }
+  } else {
+    olsr_port_number = portnumber;
+  }
+  return true;
+}//end Nrlolsr::SetOlsrMacControlPort
+bool
 Nrlolsr::SetOlsrMacControlPort(int portnumber){
   mac_control_port=portnumber;
   if(mac_control_socket.IsOpen()){
@@ -202,6 +228,44 @@ Nrlolsr::SetOlsrDebugLog(const char* logfilename){
   CloseDebugLog();
   //DMSG(6,"Exit: Nrlolsr::SetOlsrDebugLog(logfilename %s)\n", logfilename);
   return OpenDebugLog(logfilename);
+}
+bool
+Nrlolsr::SetOlsrStatic(double runtime){
+  //DMSG(6,"Enter: Nrlolsr::SetOlsrStatic(runtime %f\n",runtime);
+  if(runtime > 0) {
+    if(isRunning){//called after startup we need to install the timer ourselves
+      if(static_run_timer.IsActive()) static_run_timer.Deactivate();
+      static_run_timer.SetInterval(runtime);
+      static_run_timer.SetRepeat(0);
+      if(!timerMgrPtr) {
+        timerMgrPtr->ActivateTimer(static_run_timer);
+      } else {
+        DMSG(0,"Nrlolsr::SetOlsrStatic: Error. timerMgrPtr is NULL!\n");
+      }
+    } else { //called on command line or after we shut it down so just set the interval and let startup take care of things
+      static_run_timer.SetInterval(runtime);
+      static_run_timer.SetRepeat(0);
+    }
+  } else if (runtime == -1) { //a turn back on command
+    if(static_run_timer.IsActive()) static_run_timer.Deactivate();
+    if(!isRunning){
+      Restart();
+    } else {
+      DMSG(0,"Nrlolsr::SetOlsrStatic: Warning. Calling this function with a runtime of -1 when nrlolsr has already started will only reset the static_run_timer\n");
+    }
+  } else if (runtime == 0){ //basiclly a shutdown command (if this is called on the command line startup will turn timers back on)
+    if(isRunning){
+      if(static_run_timer.IsActive()) static_run_timer.Deactivate();
+      Sleep();
+    } else {
+      DMSG(0,"Nrlolsr::SetOlsrStatic: Warning a runtime of 0 is a noop when nrlolsr has not yet started\n");
+    }
+  } else {
+    DMSG(0,"Nrlolsr::SetOlsrStatic: Error.  runtime \"%f\" is not -1 or between 1-MAX_DOUBLE.",runtime);
+    return false;
+  }
+  //DMSG(6,"Exit: Nrlolsr::SetOlsrStatic(runtime %f\n",runtime);
+  return true;  
 }
 bool
 Nrlolsr::SetOlsrHelloInterval(double interval){
@@ -340,6 +404,16 @@ Nrlolsr::SetOlsrHNATimeout(double timeout){
   return 1;
 }
 bool
+Nrlolsr::SetOlsrDelaySmfOff(double delay){
+  if(delay<0){
+    DMSG(0,"Nrlolsr::SetOlsrDelaySmfOff has to be positive and in seconds.  Setting to 0)\n");
+    Delay_Smf_Off_Time = 0;
+  } else {
+    Delay_Smf_Off_Time = delay;
+  }
+  return true;
+}
+bool
 Nrlolsr::SetOlsrForwardingDelay(double delay){
   //DMSG(6,"Enter: Nrlolsr::SetOlsrForwardingDelay(delay = %f)\n",delay)
   if(delay<0){
@@ -356,6 +430,30 @@ Nrlolsr::SetOlsrAllLinks(bool on){
   allLinks = on;
   //DMSG(6,"Exit: Nrlolsr::SetOlsrAllLinks(on %d)\n",on);    
   return true;
+}
+bool
+Nrlolsr::SetOlsrHelloUseUnicast(int mode){
+  //DMSG(6,"Enter: Nrlolsr::SetOlsrHelloUseUnicast(on %d)\n",on);    
+  switch (mode) {
+    case 0:
+      helloUseUnicast = false;
+      helloUseUnicastOpt = false;
+      break;
+    case 1:
+      helloUseUnicast = true;
+      helloUseUnicastOpt = true;
+      break;
+    case 2:
+      helloUseUnicast = true;
+      helloUseUnicastOpt = false;
+      break;
+    default:
+      DMSG(0,"Nrlolsr::SetOlsrHelloUseUnicast value of %d is invalid only values 0-2 are valid\n");
+      return false;
+  }
+  //DMSG(6,"Exit: Nrlolsr::SetOlsrHelloUseUnicast(on %d)\n",on);    
+  return true;
+
 }
 bool
 Nrlolsr::SetOlsrFastReRoute(bool on){
@@ -462,6 +560,8 @@ bool
 Nrlolsr::SetOlsrHNAFile(const char* filename){
   //DMSG(6,"Enter: Nrlolsr::SetOlsrHNAFile(filename %s)\n",filename);    
   char tag[8], subnetaddress[256], buff[1024];
+  char allones[128];
+  memset(allones,0xffff,128);
   int masklength=0;
   ProtoAddress subnetAddress, subnetMask;
   FILE *fid= fopen(filename,"r");
@@ -471,27 +571,32 @@ Nrlolsr::SetOlsrHNAFile(const char* filename){
     while(fgets(buff, 1023,fid)){ //parse line   
       sscanf(buff,"%s %s %d",tag,subnetaddress,&masklength);
       if(!strcmp(tag,"HNA")){
-	if(subnetAddress.ResolveFromString(subnetaddress)){
-	  if(subnetAddress.GetType()==ProtoAddress::IPv4){
-	    subnetMask.ResolveFromString("255.255.255.255");
-	  } else {
-	    subnetMask.ResolveFromString("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff");
-	  }
-	  subnetMask.ApplyPrefixMask(masklength);
-	  NbrTuple* newhnaroute = new NbrTuple; // yes yes I know lots of wasted space but its only done every once in a while so shut your hole.
-	  newhnaroute->N_addr = subnetAddress;
-	  newhnaroute->N_2hop_addr = subnetMask;
-	  hnaAddresses.QueueObject(newhnaroute);;
-	} else {
-	  DMSG(0,"Invalid address string %s in %s file\n",subnetaddress,filename);
-	  fclose(fid);
-	  //DMSG(6,"Exit: Nrlolsr::SetOlsrHNAFile(filename %s)\n",filename);    
-	  return 0;
-	}
+		if(subnetAddress.ResolveFromString(subnetaddress)){
+		  //if(subnetAddress.GetType()==ProtoAddress::IPv4){
+		  //	subnetMask.ResolveFromString("255.255.255.255");
+		  //} else if (subnetAddress.GetType()==ProtoAddress::IPv6){
+		  //	subnetMask.ResolveFromString("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff");
+		  //}
+		  subnetMask.SetRawHostAddress(subnetAddress.GetType(),allones,subnetAddress.GetLength());
+		  subnetMask.ApplyPrefixMask(masklength);
+		  NbrTuple* newhnaroute = new NbrTuple; // yes yes I know lots of wasted space but its only done every once in a while so......
+		  newhnaroute->N_addr = subnetAddress;
+		  newhnaroute->N_2hop_addr = subnetMask;
+		  hnaAddresses.QueueObject(newhnaroute);
+		  localHnaRouteTable.SetRoute(subnetAddress,masklength,subnetAddress);//this list is only currently only used by ns2 for "anycasting"
+		  DMSG(4,"%s is adding the network route ",myaddress.GetHostString());
+		  DMSG(4,"%s/",newhnaroute->N_addr.GetHostString());
+		  DMSG(4,"%s to the local hna route table\n",newhnaroute->N_2hop_addr.GetHostString());
+		} else {
+		  DMSG(0,"Invalid address string %s in %s file\n",subnetaddress,filename);
+		  fclose(fid);
+		  //DMSG(6,"Exit: Nrlolsr::SetOlsrHNAFile(filename %s)\n",filename);    
+		  return 0;
+		}
       } else {
-	DMSG(0,"invalid option %s in hna setup file %s\n",tag,filename);
-	//DMSG(6,"Exit: Nrlolsr::SetOlsrHNAFile(filename %s)\n",filename);
-	return 0;
+		DMSG(0,"invalid option %s in hna setup file %s\n",tag,filename);
+		//DMSG(6,"Exit: Nrlolsr::SetOlsrHNAFile(filename %s)\n",filename);
+		return 0;
       }
     }
   } else {
@@ -549,7 +654,7 @@ Nrlolsr::SetOlsrRouteTable(ProtoRouteMgr *theRouteMgr){
 bool
 Nrlolsr::Start()
 {
-
+  isRunning = true;
   //DMSG(6,"Enter: Nrlolsr::Start()\n");
   //set up timers with correct values.
   Neighb_Hold_Time = Hello_Timeout_Factor*Hello_Interval; 
@@ -587,10 +692,10 @@ Nrlolsr::Start()
   }
 
   // "Fix" the interface name in case it was
-
   netBroadAddr.GetBroadcastAddress(broadMaskLength,broadAddr); 
-  broadAddr.SetPort(698);
+  broadAddr.SetPort(olsr_port_number);
   // route table and hna stuff
+  //the below line should be called by the controling/App/Agent/etc classes.
   //realRouteTable->Open();
   initialRouteTable.Init();
   realRouteTable->GetAllRoutes(ipvMode,initialRouteTable);
@@ -614,7 +719,7 @@ Nrlolsr::Start()
   }
   */
   //install udp sockets
-  if (!socket.Open(698,ipvMode,false)){
+  if (!socket.Open(olsr_port_number,ipvMode,false)){
     DMSG(0, "Nrlolsr::Start() Error opening udp socket! \n");
     //DMSG(6,"Exit: Nrlolsr::Start()\n");
     return false;
@@ -650,8 +755,11 @@ Nrlolsr::Start()
     }
 #endif
   }
-  if(!socket.Bind(698)){
-    DMSG(0,"nrlolsr: Error binding port number 698 to udp socket \n");    
+  if(!socket.SetReuse(true)){ //this was required for use in certain emulated systems
+    DMSG(0,"Nrlolsr::Start() ERROR SetReuse(true) returned false\n");
+  }
+  if(!socket.Bind(olsr_port_number)){
+    DMSG(0,"nrlolsr: Error binding port number olsr_port_number to udp socket \n");    
     //DMSG(6,"Exit: Nrlolsr::Start()\n");
     return false;
   }
@@ -711,6 +819,18 @@ Nrlolsr::Start()
 	{
 	  DMSG(0, "Nrloslr::Start(): smf_pipe.Connect(nrlsmf) Not connected.\n");
 	}
+    }
+    if (SDTOn && (!sdt_pipe.IsOpen()))
+    {
+        // Try and connect to the smf pipe "sdt" by default
+        if(sdt_pipe.Connect("sdt"))
+        {
+            //send any initial state here    
+        } 
+        else
+        {
+            DMSG(0, "Nrlolsr::Start(): sdt_pipe.Connect(sdt) Not Connected.\n");
+        }
     }
   if (!gui_pipe.IsOpen())
     {
@@ -788,10 +908,22 @@ Nrlolsr::Start()
     if(!tc_jitter_timer.IsActive()) timerMgrPtr->ActivateTimer(tc_jitter_timer);
     if(!hna_timer.IsActive()) timerMgrPtr->ActivateTimer(hna_timer);
     if(!hna_jitter_timer.IsActive()) timerMgrPtr->ActivateTimer(hna_jitter_timer);
+    if(!static_run_timer.IsActive()){
+      if(static_run_timer.GetInterval()!=0){
+        timerMgrPtr->ActivateTimer(static_run_timer);
+      }
+    }
   } else {
     DMSG(0,"Nrlolsr::Start() Error timerMgrPtr is NULL!\n");
     return false;
   }
+  
+  //send any smf info that might need to be sent.  This has to be done near the end as 
+  //local address and pipes have to be set up.  Also smf pipe handshaking has to happen.
+  if(updateSmfForwardingInfo){
+    SendForwardingInfo();
+  }
+
   //DMSG(6,"Exit: Nrlolsr::Start()\n");
   return true;
 } // end Nrlolsr::Start(argc %s, argv %d)
@@ -803,11 +935,12 @@ Nrlolsr::discoverAndSetHNAs(char* ignoreDev){ // function onwly works with ipv4 
 #ifdef UNIX
 #ifndef SIMULATE
   if(ipvMode==ProtoAddress::IPv4){ //ipv6 does not yet have auto setup for hna use the file option to set the hna for v6
+    char *trashCharPtr = NULL;
     char buff[1024],word[256];//currentDev[256];
     ProtoAddress currentMask, currentNetwork;
     FILE *fid = popen("netstat -rn","r");
-    fgets(buff,1023,fid);// getting rid of first line
-    fgets(buff,1023,fid);// getting rid of first line
+    trashCharPtr = fgets(buff,1023,fid);// getting rid of first line
+    trashCharPtr = fgets(buff,1023,fid);// getting rid of first line
     while(fgets(buff, 1023,fid)){ //parse line
       int index=0;
       int wordnumber=0;
@@ -840,10 +973,36 @@ Nrlolsr::discoverAndSetHNAs(char* ignoreDev){ // function onwly works with ipv4 
   return returnvalue;
 }
 bool
-Nrlolsr::StringProcessCommands(char* theString){
+Nrlolsr::ConfigProcessCommands(const char* theFileName)
+{
+    FILE *configFile;
+    char commands[500];
+    configFile = fopen(theFileName,"r");
+    if(NULL != configFile)
+    {
+        while(fgets(commands,500,configFile))
+        {
+            if(!StringProcessCommands(commands))
+            {
+                DMSG(0,"Nrlolsr::ConfigProcessCommads(%s\n): Error processing commands in file\n",configFile);
+                return false;
+            }
+        }
+        fclose(configFile);
+    }
+    else
+    {
+        DMSG(0,"Nrlolsr::ConfigProcessCommands(%s\n): Error opening file.",theFileName);
+        return false;
+    }
+    return true;
+}
+
+bool
+Nrlolsr::StringProcessCommands(const char* theString){
   DMSG(3,"\"%s\" is the stirng I am processing\n",theString);
-  char *stringPtrStart=theString;
-  char *stringPtrEnd=theString;
+  const char *stringPtrStart=theString;
+  const char *stringPtrEnd=theString;
   char space = ' ';
   char *argv[256]; 
   int argc=1;
@@ -888,6 +1047,12 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       }
       i++;
     }
+    else if(!strcmp(argv[i],"-z")){
+      //this is handled by the App code and this is just here so that usage isn't printed
+    }
+    else if(!strcmp(argv[i],"-nrlopt")){
+      StringProcessCommands("-robustroute -fdelay .05 -tci 2.0 -tct 8 -tcj .99 -hys down .01 -hi .25 -hj .99 -ht 12");
+    }
     else if(!strcmp(argv[i],"-ipv6")){
       SetOlsrIPv4(false);
     }
@@ -916,8 +1081,24 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	printusage = true;
       }
     }
+    else if(!strcmp(argv[i],"-config")){
+      i++;
+      if(!ConfigProcessCommands(argv[i])){
+        DMSG(0,"Nrlolsr: Error opening config file %s\n",argv[i]);
+        printusage = true;
+      }
+    }
 #ifndef SIMULATE //protolib does not support pipes in simulation
-    else if(!strcmp(argv[i], "guiClient")) { //set up gui sendPipeName and open gui_pipe (used to update the gui)
+    else if(!strcmp(argv[i], "-sdtClient")) { //set up and open sdt_pipe (used to update sdt)
+      i++;
+      if(sdt_pipe.IsOpen()) sdt_pipe.Close();
+      if(sdt_pipe.Connect(argv[i])) {
+        SDTOn = true;
+      } else {
+        DMSG(0,"Nrlolsr::ProcessCommands(): sdt_pipe.Connect() error can't connect to %s\n",argv[i]);
+      }
+    }
+    else if(!strcmp(argv[i], "-guiClient")) { //set up gui sendPipeName and open gui_pipe (used to update the gui)
       i++;
       if(gui_pipe.IsOpen()) gui_pipe.Close();
       if(gui_pipe.Connect(argv[i])) {
@@ -994,7 +1175,8 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	      DMSG(0, "Nrloslr::ProcessCommands(): smf_pipe.Send() error\n");
 	    }
 	}
-    } else if(!strcmp(argv[i], "smfClient")) { //set up sendPipeName and open smf_pipe (used to send mac layer mpr info to smfClient)
+    } else if((!strcmp(argv[i], "smfClient")) ||
+              (!strcmp(argv[i],"-smfClient"))) { //set up sendPipeName and open smf_pipe (used to send mac layer mpr info to smfClient)
       i++;
       if(smf_pipe.IsOpen()) smf_pipe.Close();
       if(smf_pipe.Connect(argv[i]))
@@ -1047,6 +1229,10 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	floodingOn = true;
 	floodingType = SMPR;
 	localNodeIsForwarder=false;
+      } else if(!strcmp(argv[i],"smpr")){ //source specific mpr flooding (s-mpr alias)
+	floodingOn = true;
+	floodingType = SMPR;
+	localNodeIsForwarder=false;
       } else if(!strcmp(argv[i],"ns-mpr")){ //non-source specific mpr flooding (one shared tree) using all mpr nodes
 	floodingOn = true;
 	floodingType = NSMPR;
@@ -1056,6 +1242,10 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	floodingType = NOTSYM;
 	localNodeIsForwarder=false;
       } else if(!strcmp(argv[i],"simple")){ //simplified flooding
+	floodingOn = true;
+	floodingType = SIMPLE;
+	localNodeIsForwarder=true;
+      } else if(!strcmp(argv[i],"cf")){ //classical flooding (simplified flooding alias)
 	floodingOn = true;
 	floodingType = SIMPLE;
 	localNodeIsForwarder=true;
@@ -1078,6 +1268,13 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	unicastRouting=false;
       } else {
 	unicastRouting=true;
+      }
+    }
+    else if(!strcmp(argv[i],"-static")){//used to set up static routes will turn olsr "off" after the given amout of seconds
+      i++;
+      if(!SetOlsrStatic(atof(argv[i]))){
+        DMSG(0,"Nrlolsr: Error setting static with a run time of %s\n",argv[i]);
+        printusage = true;
       }
     }
     else if(!strcmp(argv[i],"-hi")){
@@ -1136,6 +1333,14 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	printusage = true;
       }
     }
+    else if(!strcmp(argv[i],"-smfoffdelay")){
+      i++;
+      if(!SetOlsrDelaySmfOff(atof(argv[i]))){
+	DMSG(0,"Nrlolsr: Error setting smfoffdelay to %s\n",argv[i]);
+	printusage = true;
+      }
+      
+    }
     else if(!strcmp(argv[i],"-spf")){
       dotcextra=true;
       dospf=true;
@@ -1159,6 +1364,12 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       dospf=false;
       dominmax=false;
       dorobust=true;
+    }
+    else if(!strcmp(argv[i],"-port")){
+      i++;
+      if(!SetOlsrPort(atoi(argv[i]))){
+	DMSG(0,"Nrlolsr::ProcessCommands Error setting port %s\n",argv[i]);
+      }
     }
     else if(!strcmp(argv[i],"-mcport")){
       i++;
@@ -1184,6 +1395,28 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       i++;
       if(!SetOlsrHNATimeout(atof(argv[i]))){
 	DMSG(0,"Nrlolsr: Error setting HNA Timeout factor to %s\n",argv[i]);
+	printusage = true;
+      }
+    }
+    else if(!strcmp(argv[i],"-unicasthellos")){
+      i++;
+      if(!strcmp(argv[i],"on")){
+	if(!SetOlsrHelloUseUnicast(2)){
+	  DMSG(0,"Nrlolsr::ProcessCommands in -unicasthellos section.  Should not EVER return false\n");
+	  printusage = true;
+	}
+      } else if(!strcmp(argv[i],"opt")){
+	if(!SetOlsrHelloUseUnicast(1)){
+	  DMSG(0,"Nrlolsr::ProcessCommands in -unicasthellos section.  Should not EVER return false\n");
+	  printusage = true;
+	}
+      } else if(!strcmp(argv[i],"off")){
+	if(!SetOlsrHelloUseUnicast(0)){
+	  DMSG(0,"Nrlolsr::ProcessCommands in -unicasthellos section.  Should not EVER return false\n");
+	  printusage = true;
+	}
+      } else {
+	DMSG(0,"Nrlolsr::ProcessCommands in -unicasthellos section.  \"%s\"!=on or off\n");
 	printusage = true;
       }
     }
@@ -1417,7 +1650,7 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       }
     }
     else if(!strcmp(argv[i],"-v")){	
-		DMSG(0,"Nrlolsr::version 7.8.1\n");
+		DMSG(0,"Nrlolsr::version 7.9.2\n");
       //DMSG(6,"Exit: Nrlolsr::ProcessCommands(argc,argv)\n");
       return false;
     }
@@ -1435,16 +1668,17 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
   }
   if(printusage){
 #ifndef SIMULATE
-    DMSG(0,"Nrlolsr:options [-i <interfacename>][-d <debuglvl>][-l <debuglogfile>][-al on | off][-h][-v]\n");
-    DMSG(0,"                 [-w <willingness>][-hna auto|<filename>|off][-b <broadaddr> <masklength>]\n");
+    DMSG(0,"Nrlolsr:options [-i <interfacename>][-d <debuglvl>][-l <debuglogfile>][nrlopt][-al on | off][-h][-v][-z]\n");
+    DMSG(0,"                 [-config <configfile>][-w <willingness>][-hna auto|<filename>|off][-b <broadaddr> <masklength>]\n");
     DMSG(0,"                 [-hi <HelloInterval>][-hj <HelloJitter>][-ht <HelloTimeoutfactor>][-hp <HelloPadding>]\n");
     DMSG(0,"                 [-tci <TCInterval>][-tcj <TCJitter>][-tct <TCTimeoutfactor>][-ipv6][-ipv4]\n");
-    DMSG(0,"                 [-hnai <HNAInterval>][-hnaj <HNAJitter>][-hnat <HNATimeoutfactor>]\n");
+    DMSG(0,"                 [-hnai <HNAInterval>][-hnaj <HNAJitter>][-hnat <HNATimeoutfactor>][-port <number]\n");
     DMSG(0,"                 [-hys up <upvalue> | down <downvalue> | alpha <alphavalue> | on | off][-slowdown on | off]\n");
-    DMSG(0,"                 [-qos <qosvalue>][-fuzzy on | off][-shortesthop][-spf][-minmax][-mcport <portnumber>]\n");
+    DMSG(0,"                 [-qos <qosvalue>][-fuzzy on | off][-shortesthop][-robustroute][-spf][-minmax][-mcport <portnumber>]\n");
     DMSG(0,"                 [-link <address> up | down | default | spf <weight> | minmax <weight> | promisc <weight>]\n");
-    DMSG(0,"                 [-flooding off | s-mpr | ns-mpr | not-sym | simple | ecds | mpr-cds]\n");
-    DMSG(0,"                 [-unicast on | off] [-fdelay <MaxForwardDelay>]\n");
+    DMSG(0,"                 [-flooding off | s-mpr | ns-mpr | not-sym | simple | ecds | mpr-cds][-smfoffdelay <delay>]\n");
+    DMSG(0,"                 [-unicast on | off][-static <time>][-fdelay <MaxForwardDelay>][-unicasthellos on | opt | off\n");
+    DMSG(0,"                 [-rpipe <pipename>][-smfClient <pipename>][-sdtClient <pipename>][-guiClient <pipename>]\n");
     DMSG(0,"see readme.help for more info\n");
 #endif
     //DMSG(6,"Exit: Nrlolsr::ProcessCommands(argc,argv)\n");
@@ -1713,10 +1947,14 @@ Nrlolsr::SendHello()
   HelloMessage hellomessage;
   hellomessage.htime = Mantissa_Hello_Interval; //this value is not currently processed upon being recieved.
   hellomessage.willingness = localWillingness;
-  hellomessage.addLinkMessage(&symlinks);
-  hellomessage.addLinkMessage(&mprlinks);
-  hellomessage.addLinkMessage(&lostlinks);
-  hellomessage.addLinkMessage(&asymlinks);
+  if (!symlinks.neighbors.IsEmpty())
+    hellomessage.addLinkMessage(&symlinks);
+  if (!mprlinks.neighbors.IsEmpty())
+    hellomessage.addLinkMessage(&mprlinks);
+  if (!lostlinks.neighbors.IsEmpty())
+    hellomessage.addLinkMessage(&lostlinks);
+  if (!asymlinks.neighbors.IsEmpty())
+    hellomessage.addLinkMessage(&asymlinks);
   //DMSG(4,"%d is size of hello message\n",hellomessage.size);
 
   // build up Olsr message
@@ -1729,7 +1967,31 @@ Nrlolsr::SendHello()
   olsrmessage.setHelloMessage(&hellomessage);
 
   DelayedForward(&olsrmessage,0);//will add hello to packet and send out right away
-
+//  DelayedForward(&olsrmessage,0);//will add hello to packet and send out right away
+  
+  if(helloUseUnicast){
+      //we may want to do something similar to minimize the amount of unicast messages sent when not needed
+      //if(Hello_Timeout_Factor/2<++helloSentBcastOnly){
+          helloSentBcastOnly=0;
+          for(nb=nbr_list.PeekInit();nb!=NULL;nb=nbr_list.PeekNext())
+          {
+              if(nb!=NULL)
+              {
+                  if(helloUseUnicastOpt){
+                      if(nb->konectivity<.99){
+                          DMSG(6,"Sending unicast hellos at time %f\n",InlineGetCurrentTime());
+                          SendUnicastHello(&olsrmessage,nb->N_addr);
+                      }
+                  } else {
+                      DMSG(6,"Sending unicast hellos at time %f\n",InlineGetCurrentTime());
+                      SendUnicastHello(&olsrmessage,nb->N_addr);
+                  }
+              }
+          }
+      //} else {
+      //    DMSG(8,"Not sending unicast hellos at time %f\n",InlineGetCurrentTime());
+     // }
+  }
   //  DMSG(4,"%d is size of olsrmessage\n",olsrmessage.size);
 
   //switched to use the common packet for greater efficencies
@@ -1783,6 +2045,28 @@ Nrlolsr::SendHello()
   
   return true;
 }// end Nrlolsr::SendHello()
+void
+Nrlolsr::SendUnicastHello(OlsrMessage *forwardmessage,ProtoAddress uniAddr){
+    uniAddr.SetPort(olsr_port_number);
+    if(olsrpacket2forward.size!=4)
+    {
+        DMSG(1,"Nrlolsr::SendUnicastHello WARNING this was called while messages waiting...sending both messages now\n");
+        DelayedForward(forwardmessage,0);//will add hello to packet and send out right away and clear the buffer of waiting messages
+    }
+    olsrpacket2forward.addOlsrMessage(forwardmessage);
+    char forwardbuffer[1500];
+    int forwardbuffersize=olsrpacket2forward.pack(forwardbuffer,1500);
+    unsigned int forwardlen = forwardbuffersize;
+    if(forwardlen<helloPadding){ 
+      //last message added to the packet was a hello and padding level is greater than then buffer length.
+      forwardlen=helloPadding;
+      memset((void*)(forwardbuffer+forwardbuffersize),0,helloPadding-forwardbuffersize);
+    }
+    socket.SetTTL(1);
+    socket.SendTo(forwardbuffer,forwardlen,uniAddr);
+    olsrpacket2forward.clear();
+    olsrpacket2forward.seqno=pseqno++;
+}
 
 bool
 Nrlolsr::OnTcTimeout(ProtoTimer& theTimer)
@@ -1915,7 +2199,7 @@ Nrlolsr::SendHna(){
 bool 
 Nrlolsr::SendTc()
 {
-  //DMSG(6,"Enter: Nrlolsr::SendTC()\n");
+  DMSG(6,"Enter: Nrlolsr::SendTC()\n");
   if((!mprSelectorList.IsEmpty() && !allLinks) || //send tc message with mpr selector set info
      (!nbr_list.IsEmpty() && allLinks && localWillingness!=0)){          //send tc message with full link info
     DMSG(8,"sending tc from %s at time %f \n",myaddress.GetHostString(),InlineGetCurrentTime());
@@ -2127,6 +2411,7 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
   switch (theEvent)
     {
     case ProtoSocket::INVALID_EVENT:
+    case ProtoSocket::ERROR_:
       TRACE("ERROR) ...\n");
       break;
     case ProtoSocket::CONNECT:
@@ -2286,7 +2571,7 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
 		  while((littlebuffer = (char*)linkmessage.neighbors.peekNext(&neighboraddresssize))){
 		    onehopnodedegree++;
 		    if(linkmessage.reserved==1){
-		      twohopnodedegree = *(unsigned long*)linkmessage.degrees.peekNext(&degreesize);
+		      twohopnodedegree = (unsigned long)(*(UINT32*)linkmessage.degrees.peekNext(&degreesize));
 		    }
 		    //	      UINT32 neighboraddress = ntohl(((UINT32*)littlebuffer)[0]); 
 		    ProtoAddress nbr_addr;
@@ -2445,32 +2730,43 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
 	      bool addrturn = true;
 	      hna.networksandmasks.peekInit();
 	      //DMSG(4,"size of hna message %s\n",hna.size)
+#ifndef SIMULATE
 #ifdef UNIX
 		  if(olsrDebugValue>=2){ //this if block prints out all hna info of a neighbor as they get parsed.  going to be used by cmap for display
 			FILE *fid = popen("date -u +%T","r");
 			char dateBuffer[10];
-			fgets(dateBuffer,9,fid);
+			char *trashCharPtr = NULL;
+                        trashCharPtr = fgets(dateBuffer,9,fid);
 			pclose(fid);
 			fprintf(stdout,"Hna-Networks List for %s: %s.%06d\n",olsrmessage.O_addr.GetHostString(),dateBuffer,GetLittleTime());
 		  }
-#endif //UNIX	      
+#endif //UNIX
+#endif //SIMULATE      
 	      while((littlebuffer = (char*)hna.networksandmasks.peekNext(&hnasize))){
-		if(addrturn) {
-		  hna_addr.SetRawHostAddress(ipvMode,littlebuffer,hnasize);
-		} else {
-		  hna_mask.SetRawHostAddress(ipvMode,littlebuffer,hnasize);
-		  addHnaInfo(olsrmessage.O_addr,hna_addr,hna_mask,olsrmessage.Vtime);
-		  if(olsrDebugValue>=2){
-		    fprintf(stdout,"%s -> ",olsrmessage.O_addr.GetHostString());//fixme
-		    fprintf(stdout,"%s/%d\n",hna_addr.GetHostString(),hna_mask.GetPrefixLength());
-		  }
-		}
-		addrturn=!addrturn;
+			if(addrturn) {
+			  hna_addr.SetRawHostAddress(ipvMode,littlebuffer,hnasize);
+			} else {
+			  hna_mask.SetRawHostAddress(ipvMode,littlebuffer,hnasize);
+			  addHnaInfo(olsrmessage.O_addr,hna_addr,hna_mask,olsrmessage.Vtime);
+#ifndef SIMULATE
+#ifdef UNIX
+			  if(olsrDebugValue>=2){
+				fprintf(stdout,"%s -> ",olsrmessage.O_addr.GetHostString());//fixme
+				fprintf(stdout,"%s/%d\n",hna_addr.GetHostString(),hna_mask.GetPrefixLength());
+			  }
+#endif //UNIX
+#endif //SIMULATE      
+			}
+			addrturn=!addrturn;
 	      }
+#ifndef SIMULATE
+#ifdef UNIX
 	      if(olsrDebugValue>=2){
-		fprintf(stdout,"End of Hna-Networks List for %s\n",olsrmessage.O_addr.GetHostString());
-		fflush(stdout);	  
+			fprintf(stdout,"End of Hna-Networks List for %s\n",olsrmessage.O_addr.GetHostString());
+			fflush(stdout);	  
 	      }
+#endif //UNIX
+#endif //SIMULATE      
 	      // moved forwarding out of processing area so forwarding is checked after each message is fully processed or ignored
 	    } //finished processing message check for forwarding and duplicate entry
 	    //we need to check for symetry before continuing to forwarding section
@@ -2492,7 +2788,7 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
 		//if(!WasForwarded(olsrmessage.O_addr,olsrmessage.D_seq_num) && !mprSelectorList.IsEmpty()){ //message hasn't been forwared yet and I am mpr
 		// (forwarding table is redundant and is meant to be used only with multiple interfaces)
 		if(!WasForwarded(olsrmessage.O_addr,olsrmessage.D_seq_num) && (NULL!=mprSelectorList.FindObject(globalAddr))){//message hasn't been forwared yet and I am mpr  
-		  if(olsrmessage.ttl!=0 && olsrmessage.type==NRLOLSR_TC_MESSAGE || olsrmessage.type==NRLOLSR_HNA_MESSAGE || olsrmessage.type==NRLOLSR_TC_MESSAGE_EXTRA){
+		  if(olsrmessage.ttl!=0 && ((olsrmessage.type==NRLOLSR_TC_MESSAGE) || (olsrmessage.type==NRLOLSR_HNA_MESSAGE) || (olsrmessage.type==NRLOLSR_TC_MESSAGE_EXTRA))){
 		    //		if(strcmp(olsrmessage.O_addr.GetHostString(),"46")==0 && olsrmessage.type==NRLOLSR_TC_MESSAGE){
 		    //TCMessage tc;
 		    //tc.unpack(olsrmessage.message,olsrmessage.size-12,ipvMode);
@@ -2560,7 +2856,6 @@ Nrlolsr::DelayedForward(OlsrMessage *forwardmessage, double delay){
    }
   } else {
     DMSG(4,"node %s is forwarding message right away\n",myaddress.GetHostString());
-
     if(delayed_forward_timer.IsActive()){
       delayed_forward_timer.Deactivate();//we will be sending the packet right away so we are going to turn the timer off
     }
@@ -2571,12 +2866,12 @@ Nrlolsr::DelayedForward(OlsrMessage *forwardmessage, double delay){
     if(forwardlen<helloPadding && forwardmessage->type==NRLOLSR_HELLO){ 
       //last message added to the packet was a hello and padding level is greater than then buffer length.
       forwardlen=helloPadding;
-      memset((void*)(forwardbuffer+forwardbuffersize),helloPadding-forwardbuffersize,0);
+      memset((void*)(forwardbuffer+forwardbuffersize),0,helloPadding-forwardbuffersize);
     }
     socket.SetTTL(1);
     socket.SendTo(forwardbuffer,forwardlen,broadAddr);
     olsrpacket2forward.clear();
-	olsrpacket2forward.seqno=pseqno++;
+    olsrpacket2forward.seqno=pseqno++;
   }
 }
 bool
@@ -2596,7 +2891,40 @@ Nrlolsr::OnDelayedForwardTimeout(ProtoTimer &theTimer){
 	return false;
   }
 }
-
+bool
+Nrlolsr::OnDelaySmfOffTimeout(ProtoTimer &theTimer){
+  DMSG(4,"Really turning off smf forwarding\n");
+  localNodeIsForwarder=false;
+  SendForwardingInfo();
+  return true;
+}
+bool
+Nrlolsr::OnStaticRunTimeout(ProtoTimer &theTimer){
+  DMSG(4,"OnStaticRunTimeout putting olsr to sleep\n");
+  Sleep();
+  return true;
+}
+void
+Nrlolsr::SetLocalNodeIsForwarder(bool isRelay){
+  if(isRelay){
+    if(delay_smf_off_timer.IsActive()){
+      delay_smf_off_timer.Deactivate();
+    }
+    localNodeIsForwarder=true;
+  } else {
+    if(Delay_Smf_Off_Time==0)
+    {
+      localNodeIsForwarder=false;
+      if(delay_smf_off_timer.IsActive()) delay_smf_off_timer.Deactivate();
+    } else {
+      if(delay_smf_off_timer.IsActive()) return; //timer is already active do not install new timer
+      delay_smf_off_timer.SetInterval(Delay_Smf_Off_Time);
+      delay_smf_off_timer.SetRepeat(0);
+      timerMgrPtr->ActivateTimer(delay_smf_off_timer);
+    }
+  }
+  return;
+}
 void 
 Nrlolsr::OnMacControlSocketEvent(ProtoSocket& theSocket, ProtoSocket::Event theEvent){
     MacControlMsg msg;
@@ -2666,9 +2994,9 @@ void Nrlolsr::OnPktCapture(ProtoChannel& /*theChannel*/, ProtoChannel::Notificat
             if (IP_UDP_TYPE != buffer[ETH_HDR_LEN+IPV4_OFFSET_TYPE])
                 continue;  // it's not a UDP packet
             const unsigned int IPV4_HDR_LEN = 20;
-            UINT16 dstPort = htons(698);  // check for OLSR port number
+            UINT16 dstPort = htons(olsr_port_number);  // check for OLSR port number
             if (memcmp(&dstPort, buffer+ETH_HDR_LEN+IPV4_HDR_LEN+UDP_OFFSET_PORT_DST, 2))
-                continue;  // it's not an OLSR (port 698) packet
+                continue;  // it's not an OLSR (port olsr_port_number) packet
             if (1 != buffer[ETH_HDR_LEN+IPV4_HDR_LEN+UDP_HDR_LEN+OLSR_OFFSET_TYPE])
 	      continue;  // it's not an OLSR "hello" message
 	    const unsigned int IPV4_OFFSET_SRC = 12;
@@ -2713,9 +3041,9 @@ void Nrlolsr::OnPktCapture(ProtoChannel& /*theChannel*/, ProtoChannel::Notificat
 	      continue; //jump to next packet 
 	    }
 
-            UINT16 dstPort = htons(698);  // check for OLSR port number
+            UINT16 dstPort = htons(olsr_port_number);  // check for OLSR port number
             if (memcmp(&dstPort, buffer+ETH_HDR_LEN+IPV6_HDR_LEN+UDP_OFFSET_PORT_DST+header_offsets, 2))
-                continue;  // it's not an OLSR (port 698) packet
+                continue;  // it's not an OLSR (port olsr_port_number) packet
             if (1 != buffer[ETH_HDR_LEN+IPV6_HDR_LEN+header_offsets+UDP_HDR_LEN+OLSR_OFFSET_TYPE])
                 continue;  // it's not an OLSR "hello" message so we can't verify that last hop is originator
 	    ipSrc.SetRawHostAddress(ProtoAddress::IPv6, (char*)buffer+ETH_HDR_LEN+IPV6_HDR_LEN+header_offsets+UDP_HDR_LEN+OLSR_OFFSET_SRC, 16);
@@ -3622,16 +3950,21 @@ Nrlolsr::HysFailure(NbrTuple* nb){ //code modified version of nb purge (maybe ca
 
 void
 Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress subnetmask,UINT8 Vtime){
-  //DMSG(6,"Enter: Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
+  //DMSG(6,"Enter: %s's ",myaddress.GetHostString());
+  //DMSG(6,"Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
   //DMSG(6,"subnetaddr %s, ",subnetaddr.GetHostString());
   //DMSG(6,"subnetmask %s, Vtime %d)\n",subnetmask.GetHostString(),Vtime);
-
+  
   NbrTuple *tuple = NULL;
   bool notfound = true;
   //check to see if subnet address and mask is same as one that is directly used
   for(tuple=hnaAddresses.PeekInit();tuple!=NULL;tuple=hnaAddresses.PeekNext()){
+	//DMSG(6,"checking to see if local hna route %s/",tuple->N_addr.GetHostString());
+	//DMSG(6,"%s is the same as remote ",tuple->N_2hop_addr.GetHostString());
+	//DMSG(6,"%s/",subnetaddr.GetHostString());
+	//DMSG(6,"%s\n",subnetmask.GetHostString());
     if(subnetaddr.HostIsEqual((tuple->N_addr)) && subnetmask.HostIsEqual((tuple->N_2hop_addr))){
-      //DMSG(5,"finding matchs to local hna networks\n");
+      DMSG(6,"found match to local hna networks\n");
       fflush(stdout);
       //match found don't add hna 
       notfound = false;
@@ -3642,20 +3975,20 @@ Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress sub
     tuple = hnaSet.FindObject(gwaddr);
     if(tuple){
       if(tuple->subnetMask.HostIsEqual(subnetmask) && tuple->N_2hop_addr.HostIsEqual(subnetaddr)){
-	//DMSG(5,"found match with first entry\n");
-	notfound = false;
-	hnaSet.RemoveCurrent();
-	tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
-	hnaSet.QueueObject(tuple);
+		//DMSG(5,"found match with first entry\n");
+		notfound = false;
+		hnaSet.RemoveCurrent();
+		tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
+		hnaSet.QueueObject(tuple);
       }
       while((tuple = hnaSet.FindNextObject(gwaddr)) && notfound){
-	if(tuple->N_2hop_addr.HostIsEqual(subnetaddr) && tuple->subnetMask.HostIsEqual(subnetmask)){
-	  // found match remove and replace
-	  notfound = false;
-	  hnaSet.RemoveCurrent();
-	  tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
-	  hnaSet.QueueObject(tuple);
-	}
+		if(tuple->N_2hop_addr.HostIsEqual(subnetaddr) && tuple->subnetMask.HostIsEqual(subnetmask)){
+		  // found match remove and replace
+		  notfound = false;
+		  hnaSet.RemoveCurrent();
+		  tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
+		  hnaSet.QueueObject(tuple);
+		}
       }
     }
     if(notfound){
@@ -3742,7 +4075,7 @@ Nrlolsr::updateTopology(ProtoAddress T_last, UINT16 T_seq){
     //DMSG(9,"getting addr %s mssn %d \n",T_last.GetHostString(),T_seq);
     // checking to see if seq_num<T_seq number if so update
     // note that compiler says this statement is always true for some reason.  Look at it later.  May need to be fixed.
-    if(T_seq-tuple->seq_num<=MAXMSSN/2 && T_seq-tuple->seq_num>0 || (T_seq < tuple->seq_num && tuple->seq_num > T_seq + MAXMSSN/2)){ // is new data update
+    if((T_seq-tuple->seq_num<=MAXMSSN/2) && ((T_seq-tuple->seq_num>0) || ((T_seq < tuple->seq_num) && (tuple->seq_num > T_seq + MAXMSSN/2)))){ // is new data update
       //remove all old entries and prepare for updated ones
       while(tuple){
 	//DMSG(7,"Removing from %s topology tuple %d in updateTopology \n",myaddress.GetHostString(),T_last);
@@ -3821,10 +4154,12 @@ Nrlolsr::update_mprselector(ProtoAddress id,int status) {
 void
 Nrlolsr::calculateNsMpr() {
   NbrTuple *tuple_pt=NULL;
-  localNodeIsForwarder=false;
+  //localNodeIsForwarder=false;
+  SetLocalNodeIsForwarder(false);
   for(tuple_pt=nbr_list.PeekInit();tuple_pt!=NULL;tuple_pt=nbr_list.PeekNext()){//loop checking to see if ANY neighbors selected this node as mpr
     if(tuple_pt->N_status==MPR_LINKv4){
-      localNodeIsForwarder=true;
+      SetLocalNodeIsForwarder(true);
+      //localNodeIsForwarder=true;
 	  return;
 	}
   }
@@ -3846,14 +4181,17 @@ Nrlolsr::calculateMprCds() {
     }
   }
   if(smallestid){ //current node is automaticly a forwarder
-    localNodeIsForwarder=true;
+    SetLocalNodeIsForwarder(true);
+    //localNodeIsForwarder=true;
     return;
   }
   //do second check to see if current node is a forwarder did the lowest address node in the mpr selector list?
   if(mprSelectorList.FindObject(*lowest_address)){
-    localNodeIsForwarder=true;
+    SetLocalNodeIsForwarder(true);
+    //localNodeIsForwarder=true;
   } else {
-    localNodeIsForwarder=false;
+    SetLocalNodeIsForwarder(false);
+    //localNodeIsForwarder=false;
   }
   return;
 }
@@ -3865,8 +4203,10 @@ Nrlolsr::calculateOspfEcds() {
   NbrTuple *tuple_pt,*biggest_tuple_pt=NULL;
   bool oldfstate = localNodeIsForwarder;
   bool highestdegreenode = true;
-  localNodeIsForwarder=false;
-  
+  SetLocalNodeIsForwarder(false);
+  //localNodeIsForwarder=false;
+  printCurrentTable(5); 
+  DMSG(5,"%d is local node degree\n",localNodeDegree);
   //go though one hop neighbors first
   for(tuple_pt=nbr_list.PeekInit();tuple_pt!=NULL;tuple_pt=nbr_list.PeekNext()){
     if(tuple_pt!=NULL){
@@ -3876,6 +4216,13 @@ Nrlolsr::calculateOspfEcds() {
 	   ((tuple_pt->node_degree == localNodeDegree) && (tuple_pt->N_addr.CompareHostAddr(myaddress)>0))){
 	  highestdegreenode = false;
 	  //check to see if node is bigger than all previous nodes (used later on)
+	  //if((tuple_pt->node_degree)>localNodeDegree){
+	//	DMSG(3,"broken 1st part%d is > than %d?\n",tuple_pt->node_degree,localNodeDegree);
+         // }
+	  // if((tuple_pt->node_degree == localNodeDegree) && (tuple_pt->N_addr.CompareHostAddr(myaddress)>0)){
+//		DMSG(3,"broken 2nd part\n");
+//	}
+	  DMSG(5,"%s has a higher degree of %d\n",tuple_pt->N_addr.GetHostString(),tuple_pt->node_degree);
 	  if(biggest_tuple_pt){
 	    if((tuple_pt->node_degree>biggest_tuple_pt->node_degree) || 
 	       ((tuple_pt->node_degree == biggest_tuple_pt->node_degree) && (tuple_pt->N_addr.CompareHostAddr(biggest_tuple_pt->N_addr)>0))){
@@ -3893,15 +4240,20 @@ Nrlolsr::calculateOspfEcds() {
   for(tuple_pt=nbr_2hop_list.PeekInit();tuple_pt!=NULL;tuple_pt=nbr_2hop_list.PeekNext()){
     if(tuple_pt!=NULL){
       tuple_pt->was_used=false; //setting up for second check
+      DMSG(3,"tuple_pt->node dgree is %lu localnodedegree is %lu\n",tuple_pt->node_degree,localNodeDegree);
       if((tuple_pt->node_degree>localNodeDegree) || 
 	 ((tuple_pt->node_degree == localNodeDegree) && (tuple_pt->N_addr.CompareHostAddr(myaddress)>0))){
-	highestdegreenode = false;
-	//check to see if node is bigger than all previous nodes (used later on)
-	if(biggest_tuple_pt){
-	  if((tuple_pt->node_degree>biggest_tuple_pt->node_degree) || 
-	     ((tuple_pt->node_degree == biggest_tuple_pt->node_degree) && (tuple_pt->N_addr.CompareHostAddr(biggest_tuple_pt->N_addr)>0))){
-	    biggest_tuple_pt=tuple_pt;
-	  }
+	if(tuple_pt->node_degree>localNodeDegree){
+	  DMSG(3,"first part is true\n");
+        }
+        DMSG(3,"tuple_pt->node dgree is %lu localnodedegree is %lu\n",tuple_pt->node_degree,localNodeDegree);
+		highestdegreenode = false;
+		//check to see if node is bigger than all previous nodes (used later on)
+		if(biggest_tuple_pt){
+		  if((tuple_pt->node_degree>biggest_tuple_pt->node_degree) || 
+		     ((tuple_pt->node_degree == biggest_tuple_pt->node_degree) && (tuple_pt->N_addr.CompareHostAddr(biggest_tuple_pt->N_addr)>0))){
+		    biggest_tuple_pt=tuple_pt;
+		  }
 	} else { //no previous biggest to current is biggest
 	  biggest_tuple_pt=tuple_pt;
 	}
@@ -3909,7 +4261,9 @@ Nrlolsr::calculateOspfEcds() {
     }
   }
   if(highestdegreenode){
-	  localNodeIsForwarder = true;
+	  DMSG(5,"%s is a forwarder with degree %d at time %f\n",myaddress.GetHostString(),localNodeDegree,InlineGetCurrentTime());
+          SetLocalNodeIsForwarder(true);
+	  //localNodeIsForwarder = true;
 	  if(oldfstate!=localNodeIsForwarder){
 	    SendForwardingInfo();
 	  }
@@ -3921,10 +4275,12 @@ Nrlolsr::calculateOspfEcds() {
     for(tuple_pt=nbr_list.PeekInit();tuple_pt!=NULL;tuple_pt=nbr_list.PeekNext()){
       if(tuple_pt!=NULL){
 	    if(TupleLinkIsUp(tuple_pt) && !(tuple_pt->was_used)){//node is a one hop and isn't covered
-		  localNodeIsForwarder = true;
+                  SetLocalNodeIsForwarder(true);
+		  //localNodeIsForwarder = true;
 		  if(oldfstate!=localNodeIsForwarder){
 		    SendForwardingInfo();
 	      }
+		DMSG(5,"%s is a forwarder of the second order with degree %d at time %f\n",myaddress.GetHostString(),localNodeDegree,InlineGetCurrentTime());
 		  //fprintf(stderr,"%s is a forwarder of the second order with degree %d\n",myaddress.GetHostString(),localNodeDegree);	    
 		  return;	  
 		}
@@ -3940,8 +4296,10 @@ Nrlolsr::calculateOspfEcds() {
   //  }
   //}
   if(oldfstate!=localNodeIsForwarder){
-    SendForwardingInfo();
+    DMSG(3,"%s is changing forwarding state from %d to %d at time %f\n",myaddress.GetHostString(),oldfstate,localNodeIsForwarder,InlineGetCurrentTime());
+	SendForwardingInfo();
   }
+  //DMSG(3,"%s didn't change its forwarding state from %d at time %f\n",myaddress.GetHostString(),oldfstate,InlineGetCurrentTime());
   return;
 }
   
@@ -4602,11 +4960,12 @@ Nrlolsr::makeMinmaxRoutingTable() {
 // in the outcome of the resulting routing table. 
 void 
 Nrlolsr::makeNewRoutingTable(){ 
-  //DMSG(6,"Enter: Nrlolsr::makeNewRoutingTable()\n");
+  DMSG(6,"Enter: Nrlolsr::makeNewRoutingTable()\n");
   printCurrentTable(3);
   printTopology(3);
   
-  NbrTuple *nb, *nb2=NULL, *top_tuple, *old_tuple, *tuple = routeTable.PeekInit();
+  NbrTuple *nb, *nb2=NULL, *best_nb2=NULL, *top_tuple, *old_tuple, *tuple = routeTable.PeekInit();
+  NbrTuple *top_tuple_extra;
   int wasnewentry=0, queueIndex=0,foundnewlink=0;
   double smallestSpf=0 ;
   //  printRoutingTable(2);
@@ -4632,24 +4991,62 @@ Nrlolsr::makeNewRoutingTable(){
   for(nb=nbr_list.PeekInit();nb!=NULL;nb=nbr_list.PeekNext()){
     if(nb!=NULL){
       if((nb->N_status==SYM_LINKv4 || nb->N_status==MPR_LINKv4) && nb->N_macstatus!=LINK_DOWN){
-	tuple=new NbrTuple;
-	tuple->N_time=queueIndex--; //used queue object at head (which is faster way)
-  	tuple->N_addr=nb->N_addr;  // really R_dest
-  	tuple->N_2hop_addr=nb->N_addr; // really R_next
-  	tuple->hop=1;                    // really R_dist
-	tuple->N_status=-1;
-	routeTable.QueueObject(tuple);
-	DMSG(8,"%s is adding direct neighbor ",myaddress.GetHostString());
-	DMSG(8,"%s to the routing table\n",tuple->N_2hop_addr.GetHostString());
-	//	realRouteTable->addHostRoute(tuple->N_addr,tuple->N_2hop_addr);
-	wasnewentry=1;
-	// removing links pointing to this node
-	for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
-	  if(top_tuple->N_2hop_addr.HostIsEqual(tuple->N_addr)){
-	    extraQueue.RemoveCurrent();
+		tuple=new NbrTuple;
+		tuple->N_time=queueIndex--; //used queue object at head (which is faster way)
+		tuple->N_addr=nb->N_addr;  // really R_dest
+		tuple->N_2hop_addr=nb->N_addr; // really R_next
+		tuple->hop=1;                    // really R_dist
+		tuple->N_status=-1;
+		routeTable.QueueObject(tuple);
+		DMSG(8,"%s is adding direct neighbor ",myaddress.GetHostString());
+		DMSG(8,"%s to the routing table\n",tuple->N_2hop_addr.GetHostString());
+		//	realRouteTable->addHostRoute(tuple->N_addr,tuple->N_2hop_addr);
+		wasnewentry=1;
+		// removing links pointing to this node
+		for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
+		  if(top_tuple->N_2hop_addr.HostIsEqual(tuple->N_addr)){
+			extraQueue.RemoveCurrent();
+		  }
+		}
+		routeNeighborSet.QueueObject(nb);
+      }
+    }
+  }
+  //adding two hop neighbors
+  for(nb=nbr_2hop_list.PeekInit();nb!=NULL;nb=nbr_2hop_list.PeekNext()){
+    if(nb!=NULL){
+      nb2=NULL;
+      if((nb->hop)==2){
+	if((nb2=(nb->parents).PeekInit())){
+          top_tuple=new NbrTuple;
+	  tuple->N_time=queueIndex--;
+	  top_tuple->N_2hop_addr=nb->N_addr;  // really T_dest
+	  top_tuple->hop=2;
+	  top_tuple->N_status=INVALID;
+	  //loop to find most stable link that has highest willingness and preferrably an MPR selector
+          best_nb2=nb2;
+	  while((nb2=(nb->parents).PeekNext())){
+	    if ( nb2->N_willingness > best_nb2->N_willingness ||
+		 (nb2->N_status == MPR_LINKv4 && best_nb2->N_status != MPR_LINKv4) ||
+		 nb2->konectivity>best_nb2->konectivity) {
+              best_nb2=nb2;
+            }
+          }
+	  //don't use if willingnes is WILL_NEVER
+	  if (best_nb2->N_willingness == WILL_NEVER) {
+	    delete top_tuple;
+	    continue;
 	  }
-	}
-	routeNeighborSet.QueueObject(nb);
+          top_tuple->N_addr=best_nb2->N_addr; // really T_last
+	  wasnewentry=1;
+          //remove all topology tuples pointing to this 2 hop node as we will manually add it back in.
+	  for(top_tuple_extra=extraQueue.PeekInit();top_tuple_extra!=NULL;top_tuple_extra=extraQueue.PeekNext()){
+	    if(top_tuple_extra->N_2hop_addr.HostIsEqual(top_tuple->N_2hop_addr)){
+	      extraQueue.RemoveCurrent();
+	    }
+          }
+          extraQueue.QueueObject(top_tuple);
+        }
       }
     }
   }
@@ -4659,26 +5056,26 @@ Nrlolsr::makeNewRoutingTable(){
     wasnewentry=0;
     foundnewlink=0;
     /* this is broken cuase it won't always add shortest hop next
-    for(top_tuple=extraQueue.PeekInit();(top_tuple!=NULL) && (foundnewlink==0);top_tuple=extraQueue.PeekNext()){
-      for(tuple=routeTable.PeekInit();(tuple!=NULL) && (foundnewlink==0);tuple=routeTable.PeekNext()){
-	if(top_tuple->N_addr.HostIsEqual(tuple->N_addr) && !(top_tuple->N_2hop_addr).HostIsEqual(myaddress)){ //T_last==R_dest | doesn't point back to here | delay is smaller
-	  nb=tuple;
-	  nb2=top_tuple;
-	  foundnewlink=1;
-	}  
-      }
-      }*/
+	   for(top_tuple=extraQueue.PeekInit();(top_tuple!=NULL) && (foundnewlink==0);top_tuple=extraQueue.PeekNext()){
+	   for(tuple=routeTable.PeekInit();(tuple!=NULL) && (foundnewlink==0);tuple=routeTable.PeekNext()){
+	   if(top_tuple->N_addr.HostIsEqual(tuple->N_addr) && !(top_tuple->N_2hop_addr).HostIsEqual(myaddress)){ //T_last==R_dest | doesn't point back to here | delay is smaller
+	   nb=tuple;
+	   nb2=top_tuple;
+	   foundnewlink=1;
+	   }  
+	   }
+	   }*/
     shortesthop=5000; 
     for(top_tuple=extraQueue.PeekInit();(top_tuple!=NULL);top_tuple=extraQueue.PeekNext()){
       for(tuple=routeTable.PeekInit();(tuple!=NULL);tuple=routeTable.PeekNext()){
-	if(top_tuple->N_addr.HostIsEqual(tuple->N_addr) && !(top_tuple->N_2hop_addr).HostIsEqual(myaddress)){ //T_last==R_dest | doesn't point back to here | delay is smaller
-	  if(tuple->hop+1<shortesthop){//found new shortest hop node
-	    shortesthop=tuple->hop+1;
-	    nb=tuple;
-	    nb2=top_tuple;
-	    foundnewlink=1;
-	  }
-	}  
+		if(top_tuple->N_addr.HostIsEqual(tuple->N_addr) && !(top_tuple->N_2hop_addr).HostIsEqual(myaddress)){ //T_last==R_dest | doesn't point back to here | delay is smaller
+		  if((tuple->hop+1)<shortesthop){//found new shortest hop node
+			shortesthop=tuple->hop+1;
+			nb=tuple;
+			nb2=top_tuple;
+			foundnewlink=1;
+		  }
+		}  
       }
     }
     if(foundnewlink){
@@ -4693,9 +5090,9 @@ Nrlolsr::makeNewRoutingTable(){
       tuple->hop=nb->hop+1;
       tuple->N_status=0;
       routeTable.QueueObject(tuple); 
-	DMSG(8,"%s is adding, %d hop, node ",myaddress.GetHostString(),tuple->hop);
-	DMSG(8,"%s to the routing table via node ",tuple->N_addr.GetHostString());
-	DMSG(8,"%s\n",nb2->N_addr.GetHostString());
+	  DMSG(8,"%s is adding, %d hop, node ",myaddress.GetHostString(),tuple->hop);
+	  DMSG(8,"%s to the routing table via node ",tuple->N_addr.GetHostString());
+	  DMSG(8,"%s at time %f\n",nb2->N_addr.GetHostString(),InlineGetCurrentTime());
       //realRouteTable->addHostRoute(tuple->N_addr,tuple->N_2hop_addr);
       //have to remove from extraQueue tuples point at node just added
       for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
@@ -4802,7 +5199,7 @@ Nrlolsr::makeNewRoutingTable(){
 
   
   //printCurrentTable(7);
-  //DMSG(6,"Exit: Nrlolsr::makeNewRoutingTable()\n");
+  DMSG(6,"Exit: Nrlolsr::makeNewRoutingTable()\n");
 } //end Nrlolsr::makeNewRoutingTable()
 
 //this is a modified non-spec routing table calculation which takes into consideration bi-directionality of links
@@ -4816,14 +5213,15 @@ Nrlolsr::makeNewRoutingTable(){
 
 void 
 Nrlolsr::makeNewRoutingTableRobust(){ 
-  //DMSG(6,"Enter: Nrlolsr::makeNewRoutingTableRobust()\n");
+  DMSG(6,"Enter: Nrlolsr::makeNewRoutingTableRobust()\n");
   printCurrentTable(3);
   printTopology(3);
   
-  NbrTuple *nb, *nb2=NULL, *top_tuple, *old_tuple, *tuple = routeTable.PeekInit();
+  NbrTuple *nb, *nb2=NULL, *best_nb2=NULL, *top_tuple, *old_tuple, *tuple = routeTable.PeekInit();
+  NbrTuple *top_tuple_extra;
   int wasnewentry=0, queueIndex=0,foundnewlink=0;
   double smallestSpf=0 ;
-  //  printRoutingTable(2);
+  printRoutingTable(2);
   //clearing old routing table
   oldRouteTable.Clear();
   while(tuple){
@@ -4849,6 +5247,11 @@ Nrlolsr::makeNewRoutingTableRobust(){
     top_tuple_inverse->N_status=INVALID;//flag for clearing memory when this tc is removed from the extraQueue
     extraQueue.QueueObject(top_tuple_inverse);
   }
+  DMSG(9,"%s's Initial extra Topo Table\n",myaddress.GetHostString());
+  for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
+    DMSG(9," %s-> ",top_tuple->N_addr.GetHostString());
+    DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
+  }
   //adding one hops
   for(nb=nbr_list.PeekInit();nb!=NULL;nb=nbr_list.PeekNext()){
     if(nb!=NULL){
@@ -4866,7 +5269,13 @@ Nrlolsr::makeNewRoutingTableRobust(){
 	wasnewentry=1;
 	// removing links pointing to this node
 	for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
+	  DMSG(9,"%s is checking the tuple ",myaddress.GetHostString());
+	  DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+	  DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
 	  if(top_tuple->N_2hop_addr.HostIsEqual(tuple->N_addr)){
+	    DMSG(9,"%s is removing the inverse tuple ",myaddress.GetHostString());
+	    DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+	    DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
 	    extraQueue.RemoveCurrent();
 	    if(top_tuple->N_status==INVALID){//have to delete only the inverse tuples made in this function;
 	      DMSG(8,"%s is deleting the inverse tuple ",myaddress.GetHostString());
@@ -4875,38 +5284,73 @@ Nrlolsr::makeNewRoutingTableRobust(){
 	      delete top_tuple;
 	    }
 	  }
+          // also remove all outgoing links as we will add back in only the "best link" using more up to date neighbor info
+          else if(top_tuple->N_addr.HostIsEqual(tuple->N_addr)){
+	    DMSG(9,"%s is removing the two hop tuple ",myaddress.GetHostString());
+	    DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+	    DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
+	    extraQueue.RemoveCurrent();
+	    if(top_tuple->N_status==INVALID){//have to delete only the inverse tuples made in this function;
+	      DMSG(9,"%s is deleting the two hop tuple ",myaddress.GetHostString());
+	      DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+	      DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
+	      delete top_tuple;
+	    }
+	  }
 	}
 	routeNeighborSet.QueueObject(nb);
       }
     }
   }
-  //adding two hops from neighbor table which is not standard
+  //loop for going "fixing" the entries in the working topology extraqueue using 2 hop information (we deleted all the top entries above!
   for(nb=nbr_2hop_list.PeekInit();nb!=NULL;nb=nbr_2hop_list.PeekNext()){
     if(nb!=NULL){
       nb2=NULL;
       if((nb->hop)==2){
 	if((nb2=(nb->parents).PeekInit())){
-	  tuple=new NbrTuple;
-	  tuple->N_time=queueIndex--; //used queue object at head (which is faster way)
-	  tuple->N_addr=nb->N_addr;  // really R_dest
-	  tuple->N_2hop_addr=nb2->N_addr; // really R_next
-	  tuple->hop=2;                    // really R_dist
-	  tuple->N_status=-1;
-	  routeTable.QueueObject(tuple);
-	  DMSG(8,"%s is adding direct neighbor ",myaddress.GetHostString());
-	  DMSG(8,"%s to the routing table\n",tuple->N_2hop_addr.GetHostString());
-	  //	realRouteTable->addHostRoute(tuple->N_addr,tuple->N_2hop_addr);
-	  wasnewentry=1;
-	  // removing links pointing to this node
-	  for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
-	    if(top_tuple->N_2hop_addr.HostIsEqual(tuple->N_addr)){
+          top_tuple=new NbrTuple;
+	  top_tuple->N_2hop_addr=nb->N_addr;  // really T_dest
+	  top_tuple->N_status=INVALID;
+	  //loop to find most stable link
+          best_nb2=nb2;
+	  while((nb2=(nb->parents).PeekNext())){
+            if(nb2->konectivity>best_nb2->konectivity){ //we found a better first hop
+              best_nb2=nb2;
+            }
+          }
+          top_tuple->N_addr=best_nb2->N_addr; // really T_last
+          //remove all topology tuples pointing to this 2 hop node as we will manually add it back in.
+	  for(top_tuple_extra=extraQueue.PeekInit();top_tuple_extra!=NULL;top_tuple_extra=extraQueue.PeekNext()){
+	    DMSG(9,"%s is checking the tuple ",myaddress.GetHostString());
+	    DMSG(9,"%s -> ",top_tuple_extra->N_addr.GetHostString());
+	    DMSG(9,"%s\n",top_tuple_extra->N_2hop_addr.GetHostString());
+	    if(top_tuple_extra->N_2hop_addr.HostIsEqual(top_tuple->N_2hop_addr)){
+	      DMSG(9,"%s is removing the inverse tuple ",myaddress.GetHostString());
+  	      DMSG(9,"%s -> ",top_tuple_extra->N_addr.GetHostString());
+	      DMSG(9,"%s\n",top_tuple_extra->N_2hop_addr.GetHostString());
 	      extraQueue.RemoveCurrent();
+	      if(top_tuple_extra->N_status==INVALID){//have to delete only the inverse tuples made in this function;
+	        DMSG(8,"%s is deleting the inverse tuple ",myaddress.GetHostString());
+	        DMSG(8,"%s -> ",top_tuple_extra->N_addr.GetHostString());
+	        DMSG(8,"%s\n",top_tuple_extra->N_2hop_addr.GetHostString());
+	        delete top_tuple;
+	      }
 	    }
-	  }
-	  routeNeighborSet.QueueObject(nb);
-	}
+          }
+	  DMSG(9,"%s is adding two hop neighbor tuple ",myaddress.GetHostString());
+	  DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+          DMSG(9," %s at time %f\n",top_tuple->N_2hop_addr.GetHostString(),InlineGetCurrentTime());
+          extraQueue.QueueObject(top_tuple);
+        }
       }
     }
+  }
+  //extraQueue should be fixed here
+
+  DMSG(9,"%s's extra Topo Table after fixing queue\n",myaddress.GetHostString());
+  for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
+    DMSG(9," %s-> ",top_tuple->N_addr.GetHostString());
+    DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
   }
   int shortesthop=5000;
   while(wasnewentry){
@@ -4927,7 +5371,11 @@ Nrlolsr::makeNewRoutingTableRobust(){
     for(top_tuple=extraQueue.PeekInit();(top_tuple!=NULL);top_tuple=extraQueue.PeekNext()){
       for(tuple=routeTable.PeekInit();(tuple!=NULL);tuple=routeTable.PeekNext()){
 	if(top_tuple->N_addr.HostIsEqual(tuple->N_addr) && !(top_tuple->N_2hop_addr).HostIsEqual(myaddress)){ //T_last==R_dest | doesn't point back to here | delay is smaller
-	  if(tuple->hop+1<shortesthop){//found new shortest hop node
+	  if((tuple->hop+1)<shortesthop){//found new shortest hop node
+	      DMSG(8,"%s found new shorter hop %d (%d was old) to ",myaddress.GetHostString(),tuple->hop+1,shortesthop);
+              DMSG(8," R_dest=%s R_Last=",top_tuple->N_2hop_addr.GetHostString());
+              DMSG(8,"%s",top_tuple->N_addr.GetHostString());
+              DMSG(8," R_next=%s\n",tuple->N_2hop_addr.GetHostString());
 	    shortesthop=tuple->hop+1;
 	    nb=tuple;
 	    nb2=top_tuple;
@@ -4950,18 +5398,28 @@ Nrlolsr::makeNewRoutingTableRobust(){
       routeTable.QueueObject(tuple); 
 	DMSG(8,"%s is adding, %d hop, node ",myaddress.GetHostString(),tuple->hop);
 	DMSG(8,"%s to the routing table via node ",tuple->N_addr.GetHostString());
-	DMSG(8,"%s\n",nb2->N_addr.GetHostString());
+	DMSG(8,"%s at time\n",nb2->N_addr.GetHostString(),InlineGetCurrentTime());
       //realRouteTable->addHostRoute(tuple->N_addr,tuple->N_2hop_addr);
       //have to remove from extraQueue tuples point at node just added
       for(top_tuple=extraQueue.PeekInit();top_tuple!=NULL;top_tuple=extraQueue.PeekNext()){
-	if(top_tuple->N_2hop_addr.HostIsEqual(nb2->N_2hop_addr)){
+        DMSG(9,"%s is checking tuple with ",myaddress.GetHostString());
+        DMSG(9,"%s ->",top_tuple->N_addr.GetHostString());
+        DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
+
+  //	if(top_tuple->N_2hop_addr.HostIsEqual(nb2->N_2hop_addr)){ //DON'T use this as we may delete the tuple nb2 points to!!!!
+        if(top_tuple->N_2hop_addr.HostIsEqual(tuple->N_addr)){
+
 	  extraQueue.RemoveCurrent();
+          DMSG(9,"%s is removing the inverse tuple ",myaddress.GetHostString());
+          DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+          DMSG(9,"%s from the extraQueue at time %f\n",top_tuple->N_2hop_addr.GetHostString(),InlineGetCurrentTime());
+	  
 	  if(top_tuple->N_status==INVALID){//only delete the ones which were made new in this function as the others are still in the top_table queue and still valid
-	    DMSG(8,"%s is deleting the inverse tuple ",myaddress.GetHostString());
-	    DMSG(8,"%s -> ",top_tuple->N_addr.GetHostString());
-	    DMSG(8,"%s\n",top_tuple->N_2hop_addr.GetHostString());
+            DMSG(9,"%s is deleting the inverse tuple ",myaddress.GetHostString());
+            DMSG(9,"%s -> ",top_tuple->N_addr.GetHostString());
+	    DMSG(9,"%s\n",top_tuple->N_2hop_addr.GetHostString());
 	    delete top_tuple;
-	  }
+          }
 	}
       }
       //this route set can't be easily updated and because its only for printing is being disabled.  The "links" being used can sometimes be inverse routes which are deleted
@@ -5065,12 +5523,12 @@ Nrlolsr::makeNewRoutingTableRobust(){
 
   
   //printCurrentTable(7);
-  //DMSG(6,"Exit: Nrlolsr::makeNewRoutingTableRobust()\n");
+  DMSG(6,"Exit: Nrlolsr::makeNewRoutingTableRobust()\n");
 } //end Nrlolsr::makeNewRoutingTableRobust()
 
 void
 Nrlolsr::addHnaRoutes(){
-  //DMSG(6,"Enter: Nrlolsr::addHnaRoutes()\n");
+  //DMSG(6,"Enter: Nrlolsr::addHnaRoutes() %s\n",myaddress.GetHostString());
   NbrTuple *routeTuple, *hnaTuple, *addedHnaTuple, *tuple = hnaRoutes.PeekInit();
   bool nomatch, foundhnamatch;
   int addedwithhopcount=0;
@@ -5078,7 +5536,7 @@ Nrlolsr::addHnaRoutes(){
   oldRouteTable.Clear();
   while(tuple){
     hnaRoutes.RemoveCurrent();
-    //DMSG(10,"copying entry in routing table to extra queue \n");
+    DMSG(6,"copying entry in routing table to extra queue \n");
     oldRouteTable.QueueObject(tuple);
     tuple=hnaRoutes.PeekInit();
   }
@@ -5087,39 +5545,43 @@ Nrlolsr::addHnaRoutes(){
     nomatch = true;
     addedwithhopcount = 0;
     for(addedHnaTuple = hnaRoutes.PeekInit();addedHnaTuple!=NULL && nomatch;addedHnaTuple=hnaRoutes.PeekNext()){
+	  //DMSG(6,"HNA %s is checking new hna route ",myaddress.GetHostString());
+	  //DMSG(6,"%s/%d against current route ",hnaTuple->N_2hop_addr.GetHostString(),hnaTuple->subnetMask.GetPrefixLength());
+	  //DMSG(6,"%s/%d\n",addedHnaTuple->N_2hop_addr.GetHostString(),addedHnaTuple->subnetMask.GetPrefixLength());
+
       if(hnaTuple->N_2hop_addr.HostIsEqual((addedHnaTuple->N_2hop_addr)) && 
-	 hnaTuple->subnetMask.HostIsEqual((addedHnaTuple->subnetMask))) { //checking for matching subnet address
-	addedwithhopcount=addedHnaTuple->hop;
-	nomatch = false;
-	break; //I hate using breaks! and I hate how for loops do the last statement even when its conditinal is false making me use breaks!
+		 hnaTuple->subnetMask.HostIsEqual((addedHnaTuple->subnetMask))) { //checking for matching subnet address
+		addedwithhopcount=addedHnaTuple->hop;
+		nomatch = false;
+		break; //I hate using breaks! and I hate how for loops do the last statement even when its conditinal is false making me use breaks!
       }    
     }
     for(routeTuple=routeTable.PeekInit();routeTuple!=NULL;routeTuple=routeTable.PeekNext()){
       if(routeTuple->N_addr.HostIsEqual((hnaTuple->N_addr))){ //checking R_dest against hna gateway address
-	if(nomatch) {
-	  //add new hna info to hna routing table 
-	  tuple = new NbrTuple;
-	  tuple->N_addr=routeTuple->N_2hop_addr; //R_next
-	  tuple->N_2hop_addr=hnaTuple->N_2hop_addr; //sbna
-	  tuple->subnetMask=hnaTuple->subnetMask; //mask
-	  tuple->hop=routeTuple->hop;
-	  hnaRoutes.QueueObject(tuple);
-	} else if (routeTuple->hop<addedwithhopcount) { // check to see if current match is better than old
-	  //fprintf(stdout,"removing duplicate hna with longer hop count ");
-	  //remove and free old
-	  hnaRoutes.RemoveCurrent();//its one step back! grrr stupid for loop
-	  delete addedHnaTuple;
-	  //free(addedHnaTuple);
-	  //add new hna info to hna routing table
-	  tuple = new NbrTuple;
-	  tuple->N_addr=routeTuple->N_2hop_addr; //R_next
-	  tuple->N_2hop_addr=hnaTuple->N_2hop_addr; //sbna
-	  tuple->subnetMask=hnaTuple->subnetMask; //mask
-	  tuple->hop=routeTuple->hop;
-	  hnaRoutes.QueueObject(tuple);
-	} else {
-	  // do nothing already added better route
-	}
+		if(nomatch) {
+		  //add new hna info to hna routing table 
+		  tuple = new NbrTuple;
+		  tuple->N_addr=routeTuple->N_2hop_addr; //R_next
+		  tuple->N_2hop_addr=hnaTuple->N_2hop_addr; //sbna
+		  tuple->subnetMask=hnaTuple->subnetMask; //mask
+		  tuple->hop=routeTuple->hop;
+		  hnaRoutes.QueueObject(tuple);
+		} else if (routeTuple->hop<addedwithhopcount) { // check to see if current match is better than old
+		  //fprintf(stdout,"removing duplicate hna with longer hop count ");
+		  //remove and free old
+		  hnaRoutes.RemoveCurrent();//its one step back! grrr stupid for loop
+		  delete addedHnaTuple;
+		  //free(addedHnaTuple);
+		  //add new hna info to hna routing table
+		  tuple = new NbrTuple;
+		  tuple->N_addr=routeTuple->N_2hop_addr; //R_next
+		  tuple->N_2hop_addr=hnaTuple->N_2hop_addr; //sbna
+		  tuple->subnetMask=hnaTuple->subnetMask; //mask
+		  tuple->hop=routeTuple->hop;
+		  hnaRoutes.QueueObject(tuple);
+		} else {
+		  // do nothing already added better route
+		}
       }
     } 
   }
@@ -5140,37 +5602,39 @@ Nrlolsr::addHnaRoutes(){
     foundhnamatch = false;
     for(tuple = oldRouteTable.PeekInit();tuple!=NULL;tuple = oldRouteTable.PeekNext()){ 
       if(routeTuple->N_2hop_addr.HostIsEqual((tuple->N_2hop_addr)) &&
-	 routeTuple->subnetMask.HostIsEqual((tuple->subnetMask))){	
-	foundhnamatch = true;
-	if(!(routeTuple->N_addr.HostIsEqual((tuple->N_addr)))) {
-	  //found existing differet route change it
-	  //DMSG(6,"HNA Setting net route to %s / %d via",routeTuple->N_2hop_addr.GetHostString(),routeTuple->subnetMask.GetPrefixLength());
-	  //DMSG(6," %s\n",routeTuple->N_addr.GetHostString());
-	  realRouteTable->SetRoute(routeTuple->N_2hop_addr,routeTuple->subnetMask.GetPrefixLength(),routeTuple->N_addr,interfaceIndex,routeTuple->hop);
-	  if(false){//ipvMode==IPv6){
-	    //DMSG(6,"HNA Delete net route %s / %d via",tuple->N_2hop_addr.GetHostString(),tuple->subnetMask.GetPrefixLength());
-	    //DMSG(6," %s\n",tuple->N_addr.GetHostString());
-	    if(!realRouteTable->DeleteRoute(tuple->N_2hop_addr,tuple->subnetMask.GetPrefixLength(),tuple->N_addr,interfaceIndex)){//,tuple->N_addr,interfaceIndex)){
-	      DMSG(0,"Nrlolsr::addHnaRoutes() Error removing net route\n");
-	    }
-	  }
-	  // don't need next three lines
-	  //if(!realRouteTable->DeleteRoute(tuple->N_2hop_addr,tuple->subnetMask,tuple->N_addr,interfaceIndex)){
-	  //  DMSG(0,"removing net route error\n");
-	  //}
-	  
-	} else {
-	  //DMSG(6,"HNA Found matching hna entry in current route table for %s leaving alone\n",routeTuple->N_addr.GetHostString());
-	  //found same route leave alone
-	}
-	//free up oldroutetable entry
-	oldRouteTable.RemoveCurrent();
-	delete tuple;
-	//free(tuple);
+		 routeTuple->subnetMask.HostIsEqual((tuple->subnetMask))){	
+		foundhnamatch = true;
+		if(!(routeTuple->N_addr.HostIsEqual((tuple->N_addr)))) {
+		  //found existing differet route change it
+		  //DMSG(6,"HNA %s is setting net route to ",myaddress.GetHostString());
+		  //DMSG(6,"%s / %d via",routeTuple->N_2hop_addr.GetHostString(),routeTuple->subnetMask.GetPrefixLength());
+		  //DMSG(6," %s\n",routeTuple->N_addr.GetHostString());
+		  realRouteTable->SetRoute(routeTuple->N_2hop_addr,routeTuple->subnetMask.GetPrefixLength(),routeTuple->N_addr,interfaceIndex,routeTuple->hop);
+		  if(false){//ipvMode==IPv6){
+			//DMSG(6,"HNA Delete net route %s / %d via",tuple->N_2hop_addr.GetHostString(),tuple->subnetMask.GetPrefixLength());
+			//DMSG(6," %s\n",tuple->N_addr.GetHostString());
+			if(!realRouteTable->DeleteRoute(tuple->N_2hop_addr,tuple->subnetMask.GetPrefixLength(),tuple->N_addr,interfaceIndex)){//,tuple->N_addr,interfaceIndex)){
+			  DMSG(0,"Nrlolsr::addHnaRoutes() Error removing net route\n");
+			}
+		  }
+		  // don't need next three lines
+		  //if(!realRouteTable->DeleteRoute(tuple->N_2hop_addr,tuple->subnetMask,tuple->N_addr,interfaceIndex)){
+		  //  DMSG(0,"removing net route error\n");
+		  //}
+		  
+		} else {
+		  //DMSG(6,"HNA Found matching hna entry in current route table for %s leaving alone\n",routeTuple->N_addr.GetHostString());
+		  //found same route leave alone
+		}
+		//free up oldroutetable entry
+		oldRouteTable.RemoveCurrent();
+		delete tuple;
+		//free(tuple);
       } 
     }
     if (!foundhnamatch) {
-      //DMSG(6,"HNA Adding new route to %s / %d via ",routeTuple->N_2hop_addr.GetHostString(),routeTuple->subnetMask.GetPrefixLength());
+      //DMSG(6,"HNA %s is adding new route to ",myaddress.GetHostString());
+	  //DMSG(6,"%s / %d via ",routeTuple->N_2hop_addr.GetHostString(),routeTuple->subnetMask.GetPrefixLength());
       //DMSG(6,"%s\n",routeTuple->N_addr.GetHostString());
       //found new route and adding it here
       realRouteTable->SetRoute(routeTuple->N_2hop_addr,routeTuple->subnetMask.GetPrefixLength(),routeTuple->N_addr,interfaceIndex,routeTuple->hop);
@@ -5181,14 +5645,15 @@ Nrlolsr::addHnaRoutes(){
   while(tuple){ //loop to clean extraQueue and remove old routes
     oldRouteTable.RemoveCurrent();
     //remove old route
-    //DMSG(6,"HNA Removing old route %s / %d via ",tuple->N_2hop_addr.GetHostString(),tuple->subnetMask.GetPrefixLength());
-    //DMSG(6," %s\n",tuple->N_addr);
+	//DMSG(6,"HNA %s is removing old route to ",myaddress.GetHostString());
+    //DMSG(6,"%s / %d via ",tuple->N_2hop_addr.GetHostString(),tuple->subnetMask.GetPrefixLength());
+    //DMSG(6," %s\n",tuple->N_addr.GetHostString());
     if(!realRouteTable->DeleteRoute(tuple->N_2hop_addr,tuple->subnetMask.GetPrefixLength(),tuple->N_addr,interfaceIndex)){//,tuple->N_addr)){
       DMSG(0,"error removing net route\n");
     }
     delete tuple;
     //free(tuple); 
- 
+	
     tuple=oldRouteTable.PeekInit();
   }
   //DMSG(6,"Exit: Nrlolsr::addHnaRoutes()\n");
@@ -5344,7 +5809,8 @@ Nrlolsr::printHnaLinks(){
   if(olsrDebugValue>=2){
     FILE *fid = popen("date -u +%T","r");
     char dateBuffer[10];
-    fgets(dateBuffer,9,fid);
+    char* trashCharPtr = NULL;
+    trashCharPtr = fgets(dateBuffer,9,fid);
     pclose(fid);
     fprintf(stdout,"Hna-Networks List: %s.%06d\n",dateBuffer,GetLittleTime());
     for(tuple=hnaAddresses.PrintPeekInit();tuple!=NULL;tuple=hnaAddresses.PrintPeekNext()){
@@ -5423,7 +5889,87 @@ void Nrlolsr::SendForwardingInfo(){
 #endif //OPNET
 
 #ifndef SIMULATE
+void Nrlolsr::SendSDTInfo()
+{
+//    DMSG(6,"Nrlolsr::SendSDTInfo: Enter\n");
+    char buffer[512];
+    unsigned int len = 0;
+    NbrTuple *nb;
+    if (sdt_pipe.IsOpen() && SDTOn)
+    {
+        //currently only supports non source based forwarding for the spheres
+        if(localNodeIsForwarder != localNodeIsForwarder_old)
+        {
+            if(localNodeIsForwarder)
+            {
+                sprintf(buffer,"node %s symbol sphere,blue,X,X,X,0.15\n",myaddress.GetHostString());
+            } 
+            else 
+            {
+                sprintf(buffer,"node %s symbol none",myaddress.GetHostString());
+                //sprintf(buffer,"node %s symbol sphere, X,X,X,X,0.0\n",myaddress.GetHostString());
+            }
+            len = strlen(buffer);
+            if(!sdt_pipe.Send(buffer,len))
+            {
+                DMSG(0,"Nrlolsr::SendSDTInfo() error sending to sdt_pipe!\n");
+            }
+            localNodeIsForwarder_old = localNodeIsForwarder;
+        }
+        memset(buffer,0,512);
+        //currently only outputs one hop link information.  We will want to expand this too include information from TC link state as well
+
+        for(nb=nbr_list.PrintPeekInit();nb!=NULL;nb=nbr_list.PrintPeekNext())
+        {
+            switch(nb->N_status)
+            {
+                case LOST_LINKv4:
+                case ASYM_LINKv4:
+                case PENDING_LINK:
+                    if ((nb->N_old_status == SYM_LINKv4) ||
+                        (nb->N_old_status == MPR_LINKv4))
+                    { 
+                        sprintf(buffer,"delete link,%s,",myaddress.GetHostString());
+                        len = strlen(buffer);
+                        sprintf(buffer+len,"%s,olsr:nbr",nb->N_addr.GetHostString());
+                        len = strlen(buffer);
+                        if(!sdt_pipe.Send(buffer,len))
+                        {
+                            DMSG(0,"Nrlolsr::SendSDTInfo() error sending to sdt_pipe!\n");
+                        }
+                        memset(buffer,0,512);
+                    }
+                    break;
+                case SYM_LINKv4:
+                case MPR_LINKv4:
+                    if ((nb->N_old_status == LOST_LINKv4) ||
+                        (nb->N_old_status == ASYM_LINKv4) ||
+                        (nb->N_old_status == PENDING_LINK))
+                    { 
+                        sprintf(buffer,"link %s,",myaddress.GetHostString());
+                        len = strlen(buffer);
+                        sprintf(buffer+len,"%s,olsr:nbr",nb->N_addr.GetHostString());
+                        len = strlen(buffer);
+                        if(!sdt_pipe.Send(buffer,len))
+                        {
+                            DMSG(0,"Nrlolsr::SendSDTInfo() error sending to sdt_pipe!\n");
+                        }
+                        memset(buffer,0,512);
+                    }
+                    break;
+                default:
+                    ;//fprintf(stdout,"INVALID, ");
+            }
+            nb->N_old_status = nb->N_status; //update the old value as we have just sent anything we needed too.
+        }
+    } 
+}
 void Nrlolsr::SendForwardingInfo(){
+    //DMSG(6,"Nrlolsr::SendForwardingInfo: Enter\n");
+    if(SDTOn)
+    {
+        SendSDTInfo();
+    }
   char buffer[512];
   unsigned int len = 0;    
   if (smf_pipe.IsOpen() && floodingOn){
@@ -5445,8 +5991,10 @@ void Nrlolsr::SendForwardingInfo(){
     case MPRCDS:
     case ECDS:
       if(localNodeIsForwarder){
+                DMSG(4,"turning on forwarding for all interfaces\n");
 	  	strcpy(buffer,"defaultForward on");
       } else {
+                DMSG(5,"turning off forwarding for all interfaces\n");
 	  	strcpy(buffer,"defaultForward off");
       }
       len = strlen(buffer);
@@ -5588,7 +6136,7 @@ Nrlolsr::SendGuiSettings(){
 void Nrlolsr::SendMacMprInfo()
 { 
     char buffer[8192];
-    strcpy(buffer, "forwardMac ");
+    strcpy(buffer, "selectorMac ");
     unsigned int len = strlen(buffer);
     for(NbrTuple* nb=mprSelectorList.PrintPeekInit(); nb!=NULL; nb=mprSelectorList.PrintPeekNext())
     {
@@ -5622,7 +6170,7 @@ void Nrlolsr::SendMacMprInfo()
 void Nrlolsr::SendMacSymInfo()
 { 
     char buffer[8192];
-    strcpy(buffer, "symetricMac ");
+    strcpy(buffer, "neighborMac ");
     unsigned int len = strlen(buffer);
     for(NbrTuple* nb=nbr_list.PrintPeekInit(); nb!=NULL; nb=nbr_list.PrintPeekNext())
     {
@@ -5663,7 +6211,8 @@ Nrlolsr::printNbrs(){
   if(olsrDebugValue>=1){
     FILE *fid = popen("date -u +%T","r");
     char dateBuffer[10];
-    fgets(dateBuffer,9,fid);
+    char *trashCharPtr = NULL;
+    trashCharPtr = fgets(dateBuffer,9,fid);
     pclose(fid);
     fprintf(stdout,"Nbr List: %s.%06d\n",dateBuffer,GetLittleTime());
     for(nb=nbr_list.PrintPeekInit();nb!=NULL;nb=nbr_list.PrintPeekNext()){
@@ -5722,7 +6271,8 @@ Nrlolsr::printLinks(){
   if(olsrDebugValue>=1){
     FILE *fid = popen("date -u +%T","r");
     char dateBuffer[10];
-    fgets(dateBuffer,9,fid);
+    char *trashCharPtr = NULL;
+    trashCharPtr = fgets(dateBuffer,9,fid);
     pclose(fid);
     fprintf(stdout,"Routing-Links List: %s.%06d\n",dateBuffer,GetLittleTime());
     for(nb=nbr_list.PrintPeekInit();nb!=NULL;nb=nbr_list.PrintPeekNext()){
@@ -5761,7 +6311,8 @@ Nrlolsr::printRouteLinks(){
   if(olsrDebugValue>=1){
     FILE *fid = popen("date -u +%T","r");
     char dateBuffer[10];
-    fgets(dateBuffer,9,fid);
+    char *trashCharPtr = NULL;
+    trashCharPtr = fgets(dateBuffer,9,fid);
     pclose(fid);
     fprintf(stdout,"Used-Routing-Links List: %s.%06d\n",dateBuffer,GetLittleTime());
     for(nb=routeNeighborSet.PrintPeekInit();nb!=NULL;nb=routeNeighborSet.PrintPeekNext()){
@@ -6318,7 +6869,7 @@ Nrlolsr::NeighborsStableForHello(){
   if (!nbold){
     returnvalue=false;
   }
-  DMSG(6,"%p\n",nbold);
+  //DMSG(6,"%p\n",nbold);
   for(nb=nbr_list.PrintPeekInit();(nb!=NULL) && returnvalue;nb=nbr_list.PrintPeekNext()){
     if(nbold && nb){//entries still exist in both tables
       DMSG(8,"%s,%d?=",nb->N_addr.GetHostString(),nb->N_status);
@@ -6357,9 +6908,124 @@ bool
 Nrlolsr::TupleLinkIsUp(NbrTuple* tuple){ //returns true if tuple state indicates its a true one hop neighbor which can forward
   return ((tuple->N_status==MPR_LINKv4 || tuple->N_status==SYM_LINKv4) && tuple->N_willingness!=WILL_NEVER && tuple->N_macstatus!=LINK_DOWN && tuple->hop==1);
 }
+bool
+Nrlolsr::Restart()
+{
+  if(!isSleeping){
+    DMSG(0,"Nrloslr::Restart() Warning. Restart was called while nrlolsr was not sleeping!");
+    return false;
+  }
+  isSleeping = false;
+  isRunning = true;
+  //DMSG(6,"Enter: Nrlolsr::Restart()\n");
+  //install udp sockets
+  if (!socket.Open(olsr_port_number,ipvMode,false)){
+    DMSG(0, "Nrlolsr::Restart() Error opening udp socket! \n");
+    //DMSG(6,"Exit: Nrlolsr::Start()\n");
+    return false;
+  }
+  if(!mac_control_socket.Open(mac_control_port,ipvMode,false)) {
+    DMSG(0,"Nrlolsr::Restart() Error opening mac control upd socket on port %d\n",mac_control_port);
+    return false;
+  }
+  if(qosvalue!=0){
+    if(ipvMode==ProtoAddress::IPv4){
+      if (!socket.SetTOS(qosvalue)){
+	DMSG(0,"nrlolsr: Error setting tos of socket\n");
+        //DMSG(6,"Exit: Nrlolsr::Start()\n");
+	return false;
+      }
+    }
+#ifdef IPV6
+    else {
+      if(!socket.SetFlowLabel(qosvalue<<20)){ //shifting bits because IPv6 has different packet format for qos than IPv4
+	DMSG(0,"nrlolsr: Error setting flow of socket\n");
+        //DMSG(6,"Exit: Nrlolsr::Start\n");
+	return false;
+      } 
+    }
+#endif
+  }
+  if(!socket.Bind(olsr_port_number)){
+    DMSG(0,"nrlolsr: Error binding port number olsr_port_number to udp socket \n");    
+    //DMSG(6,"Exit: Nrlolsr::Start()\n");
+    return false;
+  }
+  
+  //project specific mac layer control functions not needed for core functionality
+  if(!mac_control_socket.Bind(mac_control_port)){
+    DMSG(0,"Nrlolsr::Start(): Error binding port number %d to mac control udp socket\n",mac_control_port);
+    return false;
+  }
+  if(netBroadAddr.IsMulticast()){ //do multicast stuff
+    DMSG(8,"%s is netBroadAddr\n",netBroadAddr.GetHostString());
+    if(!socket.JoinGroup(netBroadAddr,interfaceName)){
+      DMSG(0,"Nrlolsr: Error joining group %s\n",netBroadAddr.GetHostString());
+      //DMSG(6,"Exit: Nrlolsr::Start()\n");
+      return false;
+    }
+    if(!socket.SetMulticastInterface(interfaceName)){
+      DMSG(0,"Nrlolsr::Start Error calling SetMulticastInterface with interfaceName=%s\n",interfaceName);
+      //DMSG(6,"Exit: Nrlolsr::Start()\n");
+      return false;
+    }
+  } else { //address should be broadcast and will add route later
+    if (!socket.SetBroadcast(true)){
+      DMSG(0, "Nrlolsr: Error setting broadcast udp socket! \n");
+      //DMSG(6,"Exit: Nrlolsr::Start()\n");
+      return false;
+    }
+  }
+  //reinstall timers
+  if(timerMgrPtr){
+    if(!hello_timer.IsActive()) timerMgrPtr->ActivateTimer(hello_timer);
+    if(!hello_jitter_timer.IsActive()) timerMgrPtr->ActivateTimer(hello_jitter_timer);
+    if(!tc_timer.IsActive()) timerMgrPtr->ActivateTimer(tc_timer);
+    if(!tc_jitter_timer.IsActive()) timerMgrPtr->ActivateTimer(tc_jitter_timer);
+    if(!hna_timer.IsActive()) timerMgrPtr->ActivateTimer(hna_timer);
+    if(!hna_jitter_timer.IsActive()) timerMgrPtr->ActivateTimer(hna_jitter_timer);
+    if(!static_run_timer.IsActive()){
+      if(static_run_timer.GetInterval()!=0){
+        timerMgrPtr->ActivateTimer(static_run_timer);
+      }
+    }
+  } else {
+    DMSG(0,"Nrlolsr::restart() Error timerMgrPtr is NULL!\n");
+    return false;
+  }
+  //send forwarding info it applicable
+  if(updateSmfForwardingInfo){
+    SendForwardingInfo();
+  }
+  //DMSG(6,"Exit: Nrlolsr::restart()\n");
+  return true;
+} // end Nrlolsr::restart(argc %s, argv %d)
+
+void
+Nrlolsr::Sleep()//turns off timers and sets the isRunning variable to false;
+{
+  isSleeping = true;
+  isRunning = false;
+  //DMSG(6,"Enter: Nrlolsr::Sleep()\n");
+  if(hello_timer.IsActive())  hello_timer.Deactivate();
+  if(hello_jitter_timer.IsActive()) hello_jitter_timer.Deactivate();
+  if(tc_timer.IsActive()) tc_timer.Deactivate();
+  if(tc_jitter_timer.IsActive()) tc_jitter_timer.Deactivate();
+  if(hna_timer.IsActive()) hna_timer.Deactivate();
+  if(hna_jitter_timer.IsActive()) hna_jitter_timer.Deactivate();
+  if(delayed_forward_timer.IsActive()) delayed_forward_timer.Deactivate();
+  if(netBroadAddr.IsMulticast()){
+    if(!socket.LeaveGroup(netBroadAddr,interfaceName)){
+      DMSG(0,"Nrlolsr::Stop() Error leaving multicast group %s\n",netBroadAddr.GetHostString());
+    }
+  }
+  if(socket.IsOpen()) socket.Close();
+  if(mac_control_socket.IsOpen()) mac_control_socket.Close();
+}
 void 
 Nrlolsr::Stop() 
 {
+  isRunning = false;
   //DMSG(6,"Enter: Nrlolsr::Stop()\n");
   if(hello_timer.IsActive())  hello_timer.Deactivate();
   if(hello_jitter_timer.IsActive()) hello_jitter_timer.Deactivate();

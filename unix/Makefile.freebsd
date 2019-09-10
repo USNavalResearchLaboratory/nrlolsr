@@ -9,7 +9,8 @@
 #
 SYSTEM_INCLUDES = -I/usr/X11R6/include 
 SYSTEM_LDFLAGS = -L/usr/X11R6/lib 
-SYSTEM_LIBS = -lc_r
+SYSTEM_LIBS = -pthread
+#SYSTEM_LIBS = -lc_r
 #SYSTEM_LIBS = -ldl -lgthread
 
 # 1.2) (Where to find wxWindows files)
@@ -33,6 +34,6 @@ AR = ar
 SYSTEM = freebsd
 
 #SYSTEM_SRC = ../protolib/common/pcapCap.cpp
-SYSTEM_SRC = ../protolib/unix/bsdRouteMgr.cpp ../protolib/unix/bpfCap.cpp ../protolib/unix/bsdDetour.cpp
+SYSTEM_SRC = ../protolib/src/bsd/bsdRouteMgr.cpp ../protolib/src/unix/bpfCap.cpp ../protolib/src/bsd/bsdDetour.cpp
 
 include Makefile.common

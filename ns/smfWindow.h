@@ -31,7 +31,7 @@
  * 03/14/05 Brian Adamson edits
  */
 
-#include "protoBitmask.h"
+#include <protoBitmask.h>
 
 class SmfSlidingWindow
 {

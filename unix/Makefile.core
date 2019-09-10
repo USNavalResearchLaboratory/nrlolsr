@@ -26,7 +26,7 @@ CC = g++
 RANLIB = ranlib
 AR = ar
 
-SYSTEM = linux
+SYSTEM = core
 
 #SYSTEM_SRC = ../protolib/common/pcapCap.cpp
 SYSTEM_SRC = ../protolib/src/linux/linuxCap.cpp

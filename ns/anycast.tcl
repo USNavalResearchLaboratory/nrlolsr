@@ -29,7 +29,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# A simple example for wireless simulation using nrlolsr/protolib source code
+# anycast.tcl
+# A simple example for wireless simulation
 
 # ======================================================================
 # Define options
@@ -64,7 +65,7 @@ foreach arg $argv {
 	
 }
 
-puts "this is a mobile network test program using nrlolsr/protolib"
+puts "this is a mobile network test program"
 # =====================================================================
 # Main Program
 # ======================================================================
@@ -73,14 +74,14 @@ puts "this is a mobile network test program using nrlolsr/protolib"
 # Initialize Global Variables
 #
 
-set ns_		[new Simulator]
-set tracefd     [open basicmhop.tr w]
-$ns_ trace-all $tracefd
+ set ns_		[new Simulator]
+ set tracefd     [open anycast.tr w]
+ $ns_ trace-all $tracefd
 
 
 # 
-set namtrace [open basicmhop.nam w]
-$ns_ namtrace-all-wireless $namtrace $val(x) $val(y)
+  set namtrace [open anycast.nam w]
+ $ns_ namtrace-all-wireless $namtrace $val(x) $val(y)
 
 $ns_ color 0 red
 $ns_ color 1 blue
@@ -94,6 +95,11 @@ $topo load_flatgrid $val(x) $val(y)
 # Create God
 #
 create-god $val(nn)
+
+#
+#  Create the specified number of mobilenodes [$val(nn)] and "attach" them
+#  to the channel. 
+#  Here two nodes are created : node(0) and node(1)
 
 # configure node
 set chan_1_ [new $val(chan)]
@@ -123,16 +129,19 @@ set chan_1_ [new $val(chan)]
 	}
 if {$val(rp) == "ProtolibMK"} {
     for {set i 0} {$i < $val(nn) } {incr i} {
-	    set p($i) [new Agent/NrlolsrAgent]
-	    $ns_ attach-agent $node_($i) $p($i)
-	    $ns_ at 0.0 "$p($i) startup -tcj .75 -hj .5 -tci 2.5 -hi .5 -d 8 -l /tmp/olsr.log"
-	    [$node_($i) set ragent_] attach-manet $p($i)
-	    $p($i) attach-protolibmk [$node_($i) set ragent_]
+	set p($i) [new Agent/NrlolsrAgent]
+	$ns_ attach-agent $node_($i) $p($i)
+	$ns_ at 0.0 "$p($i) startup -hnai 2.5 -tcj .75 -hj .5 -tci 2.5 -hi .5 -d 8 -l /tmp/olsr.log"
+	[$node_($i) set ragent_] attach-manet $p($i)
+	$p($i) attach-protolibmk [$node_($i) set ragent_]
     }
+	$p(11) -hna /tmp/hna1.cfg
 }
 
 set totaltime 90.0
 set runtime $totaltime
+
+$ns_ at 0.0 
 
 #Make a 4 nodes in a line
 set nextx 150.0
@@ -237,36 +246,56 @@ proc ranstart { first last } {
 
 ns-random 0 # seed the thing heuristically
 set agentstart 5.0
-for {set i 0} {$i < [expr $val(nn)] } {incr i} {
-        set udp($i) [new Agent/UDP]
-        $ns_ attach-agent $node_($i) $udp($i)
- 	set cbr($i) [new Application/Traffic/CBR]
-	$cbr($i) attach-agent $udp($i)
- 	$cbr($i) set packetSize_ 1000
- 	$cbr($i) set interval_ 0.05
-	$cbr($i) set random_ 1
-	ranstart 2.0 5.0
-	$ns_ at $agentstart "$cbr($i) start"
-    }
 
-# Not sure why record function doesn't work with variables specified in naming
-# This is a hack
+set mgen_(1) [new Agent/MGEN]
+set mgen_(11) [new Agent/MGEN]
+$ns_ attach-agent $node_(1) $mgen_(1)
+$ns_ attach-agent $node_(11) $mgen_(11)
 
-set null1 [new Agent/LossMonitor]
-$ns_ attach-agent $node_(0) $null1
-$ns_ connect $udp(9) $null1
-set null2 [new Agent/LossMonitor]
-$ns_ attach-agent $node_(1) $null2
-$ns_ connect $udp(10) $null2
-set null3 [new Agent/LossMonitor]
-$ns_ attach-agent $node_(2) $null3
-$ns_ connect $udp(11) $null3
-$cbr(11) set class_ 1
+$ns_ at 5.1 "$mgen_(1) startup nolog "
+$ns_ at 5.1 "$mgen_(11) startup output dis2.rec "
+$ns_ at 5.2 "$mgen_(1) event {0.1 on 1 udp dst 250/1234 periodic \[20 256\]} "
+#$ns_ at 1.2 "$mgen_(1) event {on 0.1 udp dst -1/1234 poisson \[2 256\]} "
+$ns_ at 5.3 "$mgen_(11) event \{listen udp 1234\}"
 
 
+#for {set i 0} {$i < [expr $val(nn)] } {incr i} {
+#        set udp($i) [new Agent/UDP]
+#        $ns_ attach-agent $node_($i) $udp($i)
+# 	set cbr($i) [new Application/Traffic/CBR]
+#	$cbr($i) attach-agent $udp($i)
+# 	$cbr($i) set packetSize_ 1000
+# 	$cbr($i) set interval_ 0.05
+#	$cbr($i) set random_ 1
+##        $cbr($i) set port_ 5798
+##	$cbr($i) set class_ 2	
+## 	set null($i) [new Agent/LossMonitor]
+##   	$ns_ attach-agent $node_(0) $null($i)
+##     	$ns_ connect $udp($i) $null($i)
+#	ranstart 2.0 5.0
+## 	puts $agentstart
+#	$ns_ at $agentstart "$cbr($i) start"
+#	}
+
+## Not sure why record function doesn't work with variables specified in naming
+## This is a hack
+
+#	set null1 [new Agent/LossMonitor]
+#  	$ns_ attach-agent $node_(0) $null1
+#    	$ns_ connect $udp(9) $null1
+#	set null2 [new Agent/LossMonitor]
+#  	$ns_ attach-agent $node_(1) $null2
+#    	$ns_ connect $udp(10) $null2
+# 	set null3 [new Agent/LossMonitor]
+#   	$ns_ attach-agent $node_(2) $null3
+#     	$ns_ connect $udp(11) $null3
+#	$cbr(11) set class_ 1
+## 	set null4 [new Agent/LossMonitor]
+##   	$ns_ attach-agent $node_(0) $null4
+##     	$ns_ connect $udp(3) $null4
 
 #Tell nodes when the simulation ends
-
+#
 for {set i 1 } {$i < $val(nn) } {incr i} {
     $ns_ at $runtime "$node_($i) reset";
 }
@@ -274,13 +303,15 @@ $ns_ at $runtime "stop"
 $ns_ at $runtime "puts \"NS EXITING...\" ; $ns_ halt"
 
 proc stop {} {
-    global ns_ null1 null2 null3 namtrace tracefd runtime
-    set bw0 [$null1 set bytes_]
-    set bw1 [$null2 set bytes_]
-    set bw2 [$null3 set bytes_]
-    puts "Cbr agent0 received [expr $bw0/$runtime*8/1000] Kbps"
-    puts "Cbr agent1 received [expr $bw1/$runtime*8/1000] Kbps"
-    puts "Cbr agent2 received [expr $bw2/$runtime*8/1000] Kbps"
+    global ns_ nametrace tracefd runtime
+#    global ns_ null1 null2 null3 namtrace tracefd runtime
+#    set bw0 [$null1 set bytes_]
+#    set bw1 [$null2 set bytes_]
+#    set bw2 [$null3 set bytes_]
+#    puts "Cbr agent0 received [expr $bw0/$runtime*8/1000] Kbps"
+#    puts "Cbr agent1 received [expr $bw1/$runtime*8/1000] Kbps"
+#    puts "Cbr agent2 received [expr $bw2/$runtime*8/1000] Kbps"
+	puts "End Simulation"
     $ns_ flush-trace
  
     close $tracefd
@@ -291,6 +322,7 @@ proc stop {} {
 #Begin command line parsing
 
 proc Usage {} {
+    puts {pent: Usage> ns pent.tcl [manet <DSR,AODV,TORA,OLSR> }
     puts {PARAMETERS NEED NOT BE SPECIFIED... DEFAULTS WILL BE USED}
     exit
 }        

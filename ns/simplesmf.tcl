@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 # simple-wireless.tcl
-# A simple example for wireless simulation
+# A simple example for wireless smf simulation using nrlolsr/protolib
 
 # ======================================================================
 # Define options
@@ -43,8 +43,8 @@ set val(ifq)            Queue/DropTail/PriQueue    ;# interface queue type
 set val(ll)             LL                         ;# link layer type
 set val(ant)            Antenna/OmniAntenna        ;# antenna model
 set val(ifqlen)         50                         ;# max packet in ifq
-set val(nn)             3                         ;# number of mobilenodes
-set val(rp)             ProtolibManetKernel         ;# routing protocol
+set val(nn)             3                          ;# number of mobilenodes
+set val(rp)             ProtolibMK                 ;# routing protocol
 set val(x)	900
 set val(y)	700
 
@@ -75,26 +75,18 @@ puts "this is a mobile network test program"
 #
 
  set ns_		[new Simulator]
- set tracefd     [open basicmhop.tr w]
+ set tracefd     [open simplesmf.tr w]
  $ns_ trace-all $tracefd
 
+# Use new trace format
+ $ns_ use-newtrace
 
 # 
-  set namtrace [open basicmhop.nam w]
+  set namtrace [open simplesmf.nam w]
  $ns_ namtrace-all-wireless $namtrace $val(x) $val(y)
 
 $ns_ color 0 red
 $ns_ color 1 blue
-
-# # Set up color mapping for MDPv2 packet types
-#  $ns_ color 41 yellow
-#  $ns_ color 42 blue
-#  $ns_ color 43 darkgreen
-#  $ns_ color 44 purple
-#  $ns_ color 45 orange
-#  $ns_ color 46 red
-#  $ns_ color 47 black
-
 
 # set up topography object
 set topo       [new Topography]
@@ -105,11 +97,6 @@ $topo load_flatgrid $val(x) $val(y)
 # Create God
 #
 create-god $val(nn)
-
-#
-#  Create the specified number of mobilenodes [$val(nn)] and "attach" them
-#  to the channel. 
-#  Here two nodes are created : node(0) and node(1)
 
 # configure node
 set chan_1_ [new $val(chan)]
@@ -137,14 +124,15 @@ set chan_1_ [new $val(chan)]
 	for {set i 0} {$i < $val(nn) } {incr i} {
 		$ns_ initial_node_pos $node_($i) 25		;# disable random motion
 	}
-if {$val(rp) == "ProtolibManetKernel"} {
+if {$val(rp) == "ProtolibMK"} {
     for {set i 0} {$i < $val(nn) } {incr i} {
 	set p($i) [new Agent/NrlolsrAgent]
 	$ns_ attach-agent $node_($i) $p($i)
-	$ns_ at 0.0 "$p($i) startup -tcj 0 -hj 0 -tci 4.2 -hi 1.0 -d 8 -l /tmp/olsr.log"
+	$ns_ at 0.0 "$p($i) startup -tcj 0 -hj 0 -tci 4.2 -hi 1.0 -l /dev/null"
 	[$node_($i) set ragent_] attach-manet $p($i)
-	$p($i) attach-protolibManetKernel [$node_($i) set ragent_]
-#flooding command is only for ns and turns on flooding of all broadcast packets
+	$p($i) attach-protolibmk [$node_($i) set ragent_]
+
+#flooding command is turns on flooding of all broadcast packets
 #based upon port settings.  off is the default option.
 #"off", "simple", "ns-mpr" (non source specific), and "s-mpr" (source specific) 
 #are valid options.  See mcastForward in nrlolsrAgent to see what they do
@@ -194,6 +182,8 @@ set null2 [new Agent/LossMonitor]
 $node_(2) attach $null2 699
 
 
+#send one "multicast" packet to be forwarded
+
 $ns_ at 4.5 "$udp(0) send 1000"
 
 #Tell nodes when the simulation ends
@@ -219,7 +209,6 @@ proc stop {} {
 #Begin command line parsing
 
 proc Usage {} {
-    puts {pent: Usage> ns pent.tcl [manet <DSR,AODV,TORA,OLSR> }
     puts {PARAMETERS NEED NOT BE SPECIFIED... DEFAULTS WILL BE USED}
     exit
 }        

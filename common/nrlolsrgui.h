@@ -1,4 +1,4 @@
-#include "../protolib/wx/wxProtoApp.h"
+#include "../protolib/include/wxProtoApp.h"
 
 #include "wx/choicebk.h"
 

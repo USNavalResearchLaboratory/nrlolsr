@@ -42,22 +42,24 @@ inline int GetLittleTime()
 class Nrlolsr 
 {
  public:
-
 #ifdef SIMULATE  //messy but simulation does not have a real dispatcher because things are taken care of by simulation model
   Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer); //SetOlsrRouteMgr must be called before Start!
 #else
   Nrlolsr(ProtoDispatcher& theDispatcher, ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer); //SetOlsrRouteMgr must be called before Start!
 #endif //if/else SIMULATE
   bool Start();
-  bool StringProcessCommands(char* theString);
+  bool Restart();
+  bool StringProcessCommands(const char* theString);
+  bool ConfigProcessCommands(const char* theFileName);
   bool ProcessCommands(int argc, const char*const* argv);
   bool ParseMacControlMessage(MacControlMsg& msg); //parses mac control messages and sends corrosponding messages to processCommands
   void Stop();
+  void Sleep();
 
   bool SetOlsrBroadcastAddress(const char* addrname,const char* netmask);
   bool SetOlsrInterfaceAddress(const char* addrname);
   bool SetOlsrPort(int theport);
-	bool SetOlsrIPv4(bool ipv4mode);
+  bool SetOlsrIPv4(bool ipv4mode);
   bool SetOlsrMacControlPort(int portnumber);
   bool SetOlsrDebugLevel(int debuglvl);
   bool SetOlsrDebugLog(const char* logfilename);
@@ -71,8 +73,11 @@ class Nrlolsr
   bool SetOlsrHNAInterval(double interval);
   bool SetOlsrHNAJitter(double jitter);
   bool SetOlsrHNATimeout(double timeout);
+  bool SetOlsrDelaySmfOff(double delay);
   bool SetOlsrForwardingDelay(double delay);
   bool SetOlsrAllLinks(bool on);
+  bool SetOlsrHelloUseUnicast(int mode);//0=off 1=opt 2=on
+  bool SetOlsrStatic(double runtime);//-1=inf 0=stop n=run for n seconds then stop timers and close sockets
   bool SetOlsrFastReRoute(bool on);
   bool SetOlsrTCSlowDown(bool on);
   bool SetOlsrWillingness(int willingness);
@@ -127,6 +132,8 @@ class Nrlolsr
   void OnPktCapture(smfT_olsr_ipc* ipc);  
 #endif
 
+  ProtoRouteTable localHnaRouteTable; //this is currently only used in ns2 for checking for "anycast" type routes
+
 protected:
   //important needed referances
   ProtoTimerMgr *timerMgrPtr;
@@ -142,13 +149,21 @@ protected:
   int            noerrors;
   bool           allLinks;
   bool           fastreroute;
+  bool           helloUseUnicast; //set to false by default.  Will send unicast hellos to all known one hop neighbors once each timeout interval.
+  bool           helloUseUnicastOpt; //set to false by default.  When helloUseUnicast is true will only send to nbrs with less than .99 konectivity values.
+  int            helloSentBcastOnly; //keeps track of how many bcasts have been sent in a row.  when this is greater than Hello_Interval_Factor it will send unicast hellos out
+
+  bool isRunning; //set to false in constructor, true in Start, true in Restart, false in Stop, false in Sleep
+  bool isSleeping; //set to false in constructor, false in Restart, true in Sleep
 
   bool           tcSlowDown;
   bool           tcSlowDownNeighborsStable; //bool value which is true if neighbors are stable between tcs
   int            tcSlowDownFactor; //how much slower tcs are being sent out
   int            tcSlowDownState;  //set to one of 4 intermediate states untill slowdown factor is doubled.
 
+  void           SetLocalNodeIsForwarder(bool isRelay); //function to set localNodeIsForwarder ALWAYS use this function when setting this variable
   bool           localNodeIsForwarder; //set to true if node should forward for smf when using manet OPSF extensions method
+  bool           localNodeIsForwarder_old; //used for repressing information sent to udate sdt directly....only used for updating sdt
   unsigned long  localNodeDegree;  //vairable used in OPSF manet extensions cds algorithm
   int            localWillingness;
   int            mac_control_port; //port number that mac control option packets are sent default is 4999
@@ -197,6 +212,7 @@ protected:
 
   double         fdelay;//forwarding delay value in seconds default is 0
 
+  double         Delay_Smf_Off_Time; //amount of time to delay turning off forwarding with regards to smf.  default is 0
   ProtoAddress::Type    ipvMode;
   unsigned int          hostMaskLength;
 
@@ -276,6 +292,7 @@ private:
   // timed functions
   bool OnHelloTimeout(ProtoTimer &theTimer);
   bool SendHello();
+  void SendUnicastHello(OlsrMessage *forwardmessage, ProtoAddress uniAddr);
   bool sendHelloTimerOn;
 
   bool OnTcTimeout(ProtoTimer &theTimer);
@@ -293,6 +310,8 @@ private:
   OlsrPacket olsrpacket2forward;
   bool OnDelayedForwardTimeout(ProtoTimer &theTimer);//event which sends out messages saved for forwarding
 
+  bool OnDelaySmfOffTimeout(ProtoTimer &theTimer);//event which sets smf forwarding off and then sends information to smf_pipe
+  bool OnStaticRunTimeout(ProtoTimer &theTimer);//calls Sleep() when the timer goes off
   void OnMacControlSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent);
   //pcap mac address snooping
 #ifndef SIMULATE
@@ -308,6 +327,7 @@ private:
   ProtoPipe     recvPipe;
   ProtoPipe     smf_pipe;              // pipe to smfClient
   ProtoPipe     gui_pipe;              // pipe to gui interface
+  ProtoPipe     sdt_pipe;              // pipe to sdt interface
 #endif //SIMULATE
   ProtoTimer hello_timer;
   ProtoTimer hello_jitter_timer;
@@ -316,6 +336,8 @@ private:
   ProtoTimer hna_timer;
   ProtoTimer hna_jitter_timer;
   ProtoTimer delayed_forward_timer;
+  ProtoTimer delay_smf_off_timer;
+  ProtoTimer static_run_timer; //will turn off olsr when it goes off.  will only be turned on with -static command.
 #ifdef SMF_SUPPORT
   // This stuff supports operation with a Simplified Multicast Forwarding (smf) client app (e.g. "nrlsmf")
   void OnPktCapture(ProtoChannel& theChannel, ProtoChannel::Notification theNotification);  
@@ -331,12 +353,13 @@ private:
   void SendGuiNeighbors(); //sends neighbor info to the gui pipe
   void SendGuiSettings(); //sends the setting info to the gui pipe
 
+  void SendSDTInfo();
   void SendForwardingInfo(); //generic function which sends forwarding info dependant on which forwarding mode olsris in
   bool updateSmfForwardingInfo; //set to true if the forwarding information needs to be changed
   bool floodingOn;//set to true when flooding command is used
   FloodingType floodingType;
   bool unicastRouting;//set to true when routing is turned on; off is used for smf hello type situtations
-
+  bool SDTOn; //set to true when attempting to send SDT commands directly using protopipes off by default
 
   // helper functions  
   int update_nbr(ProtoAddress id,int status,UINT8 spfValue,UINT8 minmaxValue);

@@ -45,7 +45,7 @@ SYSTEM_SRC = bsdRouteMgr.cpp
 # The "SYSTEM" keyword can be used for dependent makes
 SYSTEM = macosx
 
-SYSTEM_SRC = ../protolib/unix/bpfCap.cpp
+SYSTEM_SRC = ../protolib/src/unix/bpfCap.cpp
 
 export CC = g++
 export RANLIB = ranlib

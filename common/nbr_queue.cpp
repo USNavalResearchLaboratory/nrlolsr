@@ -403,6 +403,7 @@ NbrTuple::NbrTuple(){
   N_spf = 128;//middle of the road value for default 0-255 for one link
   N_minmax = 128;//middle of the road value for default 0-255 for one link
   N_status = 0;
+  N_old_status = 1;
   N_macstatus = 0;
   N_willingness = 0;
   N_sort = 0;
@@ -411,6 +412,7 @@ NbrTuple::NbrTuple(){
   hop = 0;
   cdegree = 0;
   tdegree = 0;
+  node_degree = 0; //thanks brian!
   seq_num = 0;
   konectivity = 0;
   recievedHello = 0;

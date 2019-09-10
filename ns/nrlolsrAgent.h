@@ -1,9 +1,10 @@
-#include "nrlolsr.h"
-#include "protokit.h"
-#include "smfDupTree.h"
+#include <nrlolsr.h>
+#include <protokit.h>
+#include <smfDupTree.h>
 
 
-#include <nrlolsr/ns/protolibManetKernel.h>
+#include <nsProtoManetKernel.h>
+//#include <protolib/ns/nsProtoManetKernel.h> //this uses the older cvs directory structure
 #include <errno.h>
 #include <stdio.h>
 #include <signal.h>
@@ -13,6 +14,7 @@
 #include <priqueue.h>
 #include <red.h>
 
+#define SMF_MAX_BUFFER_SIZE 50
 class NrlolsrAgent : public NsProtoSimAgent 
 {
  public:
@@ -26,9 +28,16 @@ class NrlolsrAgent : public NsProtoSimAgent
   void mcastForward(Packet *p); //called by recv when handler is not null
   Nrlolsr nrlolsrObject;
  private:
-  ProtolibManetKernel* protolibManetKernelPointer;
+  ProtolibMK* protolibManetKernelPointer;
   ProtoRouteMgr* routingTable;
   SmfDuplicateTree duptable;
+ 
+  double smfDelayForward;
+  ProtoTimer smfDelayForwardTimer;
+  Packet* forwardPacketArray[SMF_MAX_BUFFER_SIZE]; //stores the packets for delayed forwarding
+  int numberOfStoredPackets; //used to keep track of the number of stored packets in the buffer
+  void delayedMcastForward(Packet *p); //called by mcastForward to take care of any delayed forwarding attempting to avoid collisions
+  bool OnSmfDelayForwardTimeout(ProtoTimer &theTimer); //send all packets in the forwardPacketArray when it fires off.
 };
 
 

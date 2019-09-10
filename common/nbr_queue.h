@@ -107,7 +107,8 @@ class NbrTuple
 	bool                        N_minmax_link_set; //set to true when an outside app sets the link metric
 	bool                       was_used; //used in routing caluclation for spf and minmax
 	int                         N_status;  // ASYM_LINK SYM_LINK or MRP_LINK possible LOST_LINK only used in 1 hop list
-	int                         N_macstatus; //LINK_UP LINK_DOWN LINK_DEFAULT
+	int                         N_old_status; //used for SDT output so only link changes are printed
+        int                         N_macstatus; //LINK_UP LINK_DOWN LINK_DEFAULT
 	UINT8                    N_willingness; //used to describe willingness;
 	double                      N_sort;      // planed to be used in SOME list sorting
 	double		            N_time;    // Node id of message source (list sorted by this value)
@@ -115,7 +116,7 @@ class NbrTuple
 	int                         hop;       // number of hop neighbor
 	int                         cdegree;    // used to find mprs current 
 	int                         tdegree;   // used to find mprs total
-	unsigned long               node_degree; //used by only by OPSF manet ext. 
+	unsigned long               node_degree; //used by only by OPSF manet ext.
 	int                         seq_num;  // used by dupicate and topology tables
 	double                      konectivity;  //used by historisis function
 	int                         recievedHello; //set to 0 on sending hello 1 on recieving

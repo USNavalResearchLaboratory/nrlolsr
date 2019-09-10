@@ -11,7 +11,7 @@ COMMON = ../common
 UNIX = ../unix
 NS = ../ns
 
-INCLUDES = $(TCL_INCL_PATH) $(SYSTEM_INCLUDES) $(WX_INCLUDES) -I$(UNIX) -I$(COMMON) -I$(PROTOLIB)/common
+INCLUDES = $(TCL_INCL_PATH) $(SYSTEM_INCLUDES) $(WX_INCLUDES) -I$(UNIX) -I$(COMMON) -I$(PROTOLIB)/include
 
 CFLAGS = -g -DPROTO_DEBUG -DUNIX -Wall -O -fPIC $(SYSTEM_HAVES) $(INCLUDES)
 
@@ -30,9 +30,9 @@ TARGETS = nrlolsrd
 all: nrlolsrd
 
 # NRLOLSRD depends upon the NRL Protean Group's development library
-LIBPROTO = $(PROTOLIB)/unix/libProtokit.a
-$(PROTOLIB)/unix/libProtokit.a:
-	cd $(PROTOLIB)/unix; make -f Makefile.$(SYSTEM) libProtokit.a
+LIBPROTO = $(PROTOLIB)/lib/libprotokit.a
+$(PROTOLIB)/lib/libprotokit.a:
+	$(MAKE) -C $(PROTOLIB)/makefiles -f Makefile.$(SYSTEM) libprotokit.a
 
 OLSR_SRC = $(COMMON)/nrlolsr.cpp $(COMMON)/olsr_packet_types.cpp \
            $(COMMON)/nbr_queue.cpp $(COMMON)/mprselPub.cpp \
@@ -40,7 +40,7 @@ OLSR_SRC = $(COMMON)/nrlolsr.cpp $(COMMON)/olsr_packet_types.cpp \
 OLSR_OBJ = $(OLSR_SRC:.cpp=.o)
 
 nrlolsrd:    $(LIBPROTO) $(OLSR_OBJ)
-	$(CC) -g $(CFLAGS) -o $@ $(OLSR_OBJ) $(LDFLAGS) $(LIBS) $(LIBPROTO) -l pcap
+	$(CC) -g $(CFLAGS) -o $@ $(OLSR_OBJ) $(LDFLAGS) $(LIBS) $(LIBPROTO) -lpcap
 
 MNM_SRC = $(COMMON)/mnmMacMsg.cpp $(COMMON)/mnmExample.cpp
 MNM_OBJ = $(MNM_SRC:.cpp=.o)
@@ -52,7 +52,7 @@ mnmExample:    $(LIBPROTO) $(MNM_OBJ)
 .cpp.o:
 	$(CC) -c $(WXCFLAGS) -o $*.o $*.cpp
     
-NRLOLSRGUI_SRC = $(COMMON)/nrlolsrgui.cpp $(PROTOLIB)/wx/wxProtoApp.cpp
+NRLOLSRGUI_SRC = $(COMMON)/nrlolsrgui.cpp $(PROTOLIB)/src/wx/wxProtoApp.cpp
 NRLOLSRGUI_OBJ = $(NRLOLSRGUI_SRC:.cpp=.o)
 
 olsrgui:	$(NRLOLSRGUI_OBJ) $(LIBPROTO)
@@ -60,7 +60,8 @@ olsrgui:	$(NRLOLSRGUI_OBJ) $(LIBPROTO)
 
 clean:	
 	rm -f *.o $(COMMON)/*.o $(NS)/*.o nrlolsrd olsrgui
-	make -C $(PROTOLIB)/unix -f Makefile.common clean
+	$(MAKE) -C $(PROTOLIB)/makefiles -f Makefile.$(SYSTEM) clean
+distclean:  clean
 
 # DO NOT DELETE THIS LINE -- mkdep uses it.
 # DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.

@@ -26,9 +26,16 @@ MyListDest*     destList     = new MyListDest();
 
 MyListNeighbor* neighborList = new MyListNeighbor();
 
+inline wxString _U(const char String[] = "")
+{
+    return wxString(String, wxConvUTF8);
+}
+
 
 
 IMPLEMENT_APP(OLSRApp)
+
+
 
 
 
@@ -77,8 +84,8 @@ bool OLSRApp::OnInit()
 	  }
 
 	} else {
-	    wxMessageBox("Not connected to the client pipe \"%s\"\n",clientPipeName);
-		wxMessageBox(clientPipeName);
+		wxMessageBox(_T("Not connected to the client pipe \"") +
+				wxString::FromAscii(clientPipeName) + _T("\""));
 	}
 
    	return true;
@@ -179,7 +186,7 @@ wxPanel * MyFrame::CreateRoutesPage(wxBookCtrlBase *parent)
 
 	////////////////////
 
-	sizerPanel->Add(new wxButton(panel,ID_REFRESH_DEST,"Refresh"));
+	sizerPanel->Add(new wxButton(panel,ID_REFRESH_DEST,_T("Refresh")));
 
 
 
@@ -291,7 +298,7 @@ wxPanel * MyFrame::CreateNeighborInfoPage(wxBookCtrlBase *parent)
 
 
 
-	sizerPanel->Add(new wxButton(panel,ID_REFRESH_NEIGHBOR,"Refresh"));
+	sizerPanel->Add(new wxButton(panel,ID_REFRESH_NEIGHBOR,_T("Refresh")));
 
 
 
@@ -349,7 +356,7 @@ wxPanel * MyFrame::CreateSettingsPage(wxBookCtrlBase *parent)
 
 	sizerTopLineBox->Add(new wxStaticText(panel,wxID_ANY,_T("OLSR:")),2,wxEXPAND | wxALIGN_CENTER | wxALIGN_CENTER_VERTICAL | wxALL);
 
-	cmdPromptTxt = new wxTextCtrl(panel,ID_SETTINGS_CHANGE_ONE,_T(""));
+	cmdPromptTxt = new wxTextCtrl(panel,ID_SETTINGS_CHANGE_ONE,_T(""), wxDefaultPosition);
 
 	sizerTopLineBox->Add(cmdPromptTxt,9,wxALIGN_LEFT | wxALIGN_CENTER);
 
@@ -365,7 +372,7 @@ wxPanel * MyFrame::CreateSettingsPage(wxBookCtrlBase *parent)
 
 
 
-	wxStaticBoxSizer* sizerCheckBox = new wxStaticBoxSizer(wxHORIZONTAL,panel,"Toggle settings"); //made of up left and right sizers
+	wxStaticBoxSizer* sizerCheckBox = new wxStaticBoxSizer(wxHORIZONTAL,panel,_T("Toggle settings")); //made of up left and right sizers
 
 	alCheckBox = new wxCheckBox(panel,ID_SETTINGS_CHANGE_ONE_CHECKBOX,_T("alllinks"),wxDefaultPosition,wxDefaultSize,wxEXPAND | wxALL | wxALIGN_CENTER | wxALIGN_CENTER_VERTICAL);
 
@@ -393,7 +400,7 @@ wxPanel * MyFrame::CreateSettingsPage(wxBookCtrlBase *parent)
 
 	//////////////////////////
 
-	wxStaticBoxSizer* sizerTimer = new wxStaticBoxSizer(wxHORIZONTAL,panel,"Timer variables"); //made of up left and right sizers
+	wxStaticBoxSizer* sizerTimer = new wxStaticBoxSizer(wxHORIZONTAL,panel,_T("Timer variables")); //made of up left and right sizers
 
 	wxBoxSizer* sizerTimerRight = new wxBoxSizer(wxVERTICAL);
 
@@ -499,7 +506,7 @@ wxPanel * MyFrame::CreateSettingsPage(wxBookCtrlBase *parent)
 	////////////////////////
 	// HYS Settings Input //
 	////////////////////////
-	wxStaticBoxSizer * sizerHys = new wxStaticBoxSizer(wxHORIZONTAL,panel,"Hystersis Values");//made up of left and right sizers
+	wxStaticBoxSizer * sizerHys = new wxStaticBoxSizer(wxHORIZONTAL,panel,_T("Hystersis Values"));//made up of left and right sizers
 
 	wxBoxSizer * sizerHysLeft = new wxBoxSizer(wxVERTICAL);
 
@@ -569,11 +576,11 @@ wxPanel * MyFrame::CreateSettingsPage(wxBookCtrlBase *parent)
 
 
 
-	buttonOk = new wxButton(panel,ID_SET,"OK");
+	buttonOk = new wxButton(panel,ID_SET,_T("OK"));
 
 	buttonOk->Enable(false); //only enable when entries were changed
 
-	buttonCancel = new wxButton(panel,ID_GET,"CANCEL");
+	buttonCancel = new wxButton(panel,ID_GET,_T("CANCEL"));
 
 	buttonCancel->Enable(false); //only enable when entries were changed
 
@@ -864,7 +871,7 @@ void MyFrame::OnListbox_dest(wxCommandEvent &event)
 
 	selectedDestItem=temp->destination;
 
-	selectedNeighborItem="";//unselect neighbor entry
+	selectedNeighborItem=_T("");//unselect neighbor entry
 
 }
 
@@ -892,7 +899,7 @@ void MyFrame::OnListbox_neighbor(wxCommandEvent &event)
 
 	selectedNeighborItem=temp->neighbor;
 
-	selectedDestItem=""; //unselect dest itme
+	selectedDestItem=_T(""); //unselect dest itme
 
 }
 
@@ -908,7 +915,7 @@ void MyFrame::OnRefreshButton_dest(wxCommandEvent &event)
 
       MyDestElement * current = node->GetData();
 
-      destinationBox->Append(current->destination + "      " + current->gateway);
+      destinationBox->Append(current->destination + _T("      ") + current->gateway);
 
     }
 
@@ -949,15 +956,15 @@ MyFrame::ClearDestEntries(){
 void 
 MyFrame::AddDestEntry(const char* dest ,const char* gw,const char* weight,const char* interfacename){
   MyDestElement * element = new MyDestElement();
-  element->destination = dest;
-  element->gateway = gw;
-  element->interfaceName = interfacename;
-  element->weight = weight ;
+  element->destination = wxString::FromAscii(dest);
+  element->gateway = wxString::FromAscii(gw);
+  element->interfaceName = wxString::FromAscii(interfacename);
+  element->weight = wxString::FromAscii(weight);
   destList->Append(element);
   //check to see if this item was highlighted before clear
-  if(dest==selectedDestItem){
-    weightTxt->SetValue(weight);
-    interfaceTxt->SetValue(interfacename);
+  if(wxString::FromAscii(dest)==selectedDestItem){
+    weightTxt->SetValue(wxString::FromAscii(weight));
+    interfaceTxt->SetValue(wxString::FromAscii(interfacename));
   }
 }
 
@@ -971,7 +978,7 @@ MyFrame::DisplayDestEntries(){
 
     MyDestElement * current = node->GetData();
 
-    destinationBox->Append(current->destination + "      " + current->gateway);
+    destinationBox->Append(current->destination + _T("      ") + current->gateway);
 
     if(current->destination==selectedDestItem){
 
@@ -1025,23 +1032,23 @@ MyFrame::AddNeighborEntry(const char* neighbor,const char* type,const char* hyst
 
   MyNeighborElement * element = new MyNeighborElement();
 
-  element->neighbor = neighbor;
+  element->neighbor = wxString::FromAscii(neighbor);
 
-  element->type = type;
+  element->type = wxString::FromAscii(type);
 
-  element->hysterisis = hysterisis;
+  element->hysterisis = wxString::FromAscii(hysterisis);
 
-  element->MPRselect = MPRselect;
+  element->MPRselect = wxString::FromAscii(MPRselect);
 
   neighborList->Append(element);
 
-  if(neighbor==selectedNeighborItem){
+  if(wxString::FromAscii(neighbor)==selectedNeighborItem){
 
-    typeTxt->SetValue(type);
+    typeTxt->SetValue(wxString::FromAscii(type));
 
-    hysterisisTxt->SetValue(hysterisis);
+    hysterisisTxt->SetValue(wxString::FromAscii(hysterisis));
 
-    selectMPRTxt->SetValue(MPRselect);
+    selectMPRTxt->SetValue(wxString::FromAscii(MPRselect));
 
   }
 
@@ -1081,7 +1088,7 @@ MyFrame::OnGetSettings(wxCommandEvent &event)
 
   if(!theApp->GetSettings()){
 
-    wxMessageBox("Error getting settings pipe may not be open");
+    wxMessageBox(_T("Error getting settings pipe may not be open"));
 
   }
 
@@ -1105,7 +1112,7 @@ MyFrame::SetSettings(const char* al, const char* fuzzy, const char* slowdown,
 
 
 
-  strValue=al;
+  strValue=wxString::FromAscii(al);
 
   if(strValue.ToLong(&intValue)){
 
@@ -1121,7 +1128,7 @@ MyFrame::SetSettings(const char* al, const char* fuzzy, const char* slowdown,
 
   }
 
-  strValue=fuzzy;
+  strValue=wxString::FromAscii(fuzzy);
 
   if(strValue.ToLong(&intValue)){
 
@@ -1137,7 +1144,7 @@ MyFrame::SetSettings(const char* al, const char* fuzzy, const char* slowdown,
 
   }
 
-  strValue=slowdown;
+  strValue=wxString::FromAscii(slowdown);
 
   if(strValue.ToLong(&intValue)){
 
@@ -1155,57 +1162,57 @@ MyFrame::SetSettings(const char* al, const char* fuzzy, const char* slowdown,
 
 
 
-  strValue=hi;
+  strValue=wxString::FromAscii(hi);
 
   helloIntervalTxt->SetValue(strValue);
 
-  strValue=hj;
+  strValue=wxString::FromAscii(hj);
 
   helloJitterTxt->SetValue(strValue);
 
-  strValue=ht;
+  strValue=wxString::FromAscii(ht);
 
   helloTimeoutTxt->SetValue(strValue);
 
 
 
-  strValue=tci;
+  strValue=wxString::FromAscii(tci);
 
   tcIntervalTxt->SetValue(strValue);
 
-  strValue=tcj;
+  strValue=wxString::FromAscii(tcj);
 
   tcJitterTxt->SetValue(strValue);
 
-  strValue=tct;
+  strValue=wxString::FromAscii(tct);
 
   tcTimeoutTxt->SetValue(strValue);
 
 
 
-  strValue=hnai;
+  strValue=wxString::FromAscii(hnai);
 
   hnaIntervalTxt->SetValue(strValue);
 
-  strValue=hnaj;
+  strValue=wxString::FromAscii(hnaj);
 
   hnaJitterTxt->SetValue(strValue);
 
-  strValue=hnat;
+  strValue=wxString::FromAscii(hnat);
 
   hnaTimeoutTxt->SetValue(strValue);
 
 
 
-  strValue=up;
+  strValue=wxString::FromAscii(up);
 
   hys_upTxt->SetValue(strValue);
 
-  strValue=down;
+  strValue=wxString::FromAscii(down);
 
   hys_downTxt->SetValue(strValue);
 
-  strValue=alpha;
+  strValue=wxString::FromAscii(alpha);
 
   hys_alphaTxt->SetValue(strValue);
 
@@ -1239,47 +1246,35 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
   cmdString.Append(cmdPromptTxt->GetValue().c_str());
 
-  if(!cmdString.IsEmpty()) cmdString.Append(" ");  //add space for other options to be sent
+  if(!cmdString.IsEmpty()) cmdString.Append(_T(" "));  //add space for other options to be sent
 
   if(alCheckBox->GetValue()){
 
-    cmd.Printf("-al on ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-al on "));
 
   } else {
 
-    cmd.Printf("-al off ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-al off "));
 
   }
 
   if(fuzzyCheckBox->GetValue()){
 
-    cmd.Printf("-fuzzy on ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-fuzzy on "));
 
   } else {
 
-    cmd.Printf("-fuzzy off ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-fuzzy off "));
 
   }
 
   if(slowdownCheckBox->GetValue()){
 
-    cmd.Printf("-slowdown on ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-slowdown on "));
 
   } else {
 
-    cmd.Printf("-slowdown off ");
-
-    cmdString.Append(cmd);
+    cmdString.Append(_T("-slowdown off "));
 
   }
 
@@ -1295,13 +1290,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>0){
 
-	cmd.Printf("-hi %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hi %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: Hello interval value of \"%s\" seconds must be positive\n",helloIntervalTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: Hello interval value of \"%s\" seconds must be positive\n"),helloIntervalTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1309,7 +1302,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: Hello interval value of \"%s\" is not in seconds\n",helloIntervalTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: Hello interval value of \"%s\" is not in seconds\n"),helloIntervalTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1323,13 +1316,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble<1 && tempdouble >=0){
 
-	cmd.Printf("-hj %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hj %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: Hello jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n",helloJitterTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: Hello jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n"),helloJitterTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1337,7 +1328,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: Hello jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n",helloJitterTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: Hello jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n"),helloJitterTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1351,13 +1342,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>1){
 
-	cmd.Printf("-ht %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-ht %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: Hello timeout factor of \"%s\" hellos\n It must be >1\n",helloTimeoutTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: Hello timeout factor of \"%s\" hellos\n It must be >1\n"),helloTimeoutTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1365,7 +1354,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: Hello timeout factor of \"%s\" must be a number >1\n",helloTimeoutTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: Hello timeout factor of \"%s\" must be a number >1\n"),helloTimeoutTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1381,13 +1370,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>0){
 
-	cmd.Printf("-tci %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-tci %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: TC interval value of \"%s\" seconds must be positive\n",tcIntervalTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: TC interval value of \"%s\" seconds must be positive\n"),tcIntervalTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1395,7 +1382,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: TC interval value of \"%s\" is not in seconds\n",tcIntervalTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: TC interval value of \"%s\" is not in seconds\n"),tcIntervalTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1409,15 +1396,13 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble<1 && tempdouble >=0){
 
-	cmd.Printf("-tcj %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-tcj %f "),tempdouble));
 
       } else {
 
 	printf("whats goin on\n");
 
-	errorMsg.Printf("Error: TC jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n",tcJitterTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: TC jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n"),tcJitterTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1425,7 +1410,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: TC jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n",tcJitterTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: TC jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n"),tcJitterTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1439,13 +1424,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>1){
 
-	cmd.Printf("-tct %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-tct %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: TC timeout factor of \"%s\" tcs\n It must be greater than 1\n",tcTimeoutTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: TC timeout factor of \"%s\" tcs\n It must be greater than 1\n"),tcTimeoutTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1453,7 +1436,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: TC timeout factor of \"%s\" is invalid\n It must be > 1",tcTimeoutTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: TC timeout factor of \"%s\" is invalid\n It must be > 1"),tcTimeoutTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1469,13 +1452,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>0){
 
-	cmd.Printf("-hnai %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hnai %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: HNA interval value of \"%s\" seconds must be positive\n",hnaIntervalTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HNA interval value of \"%s\" seconds must be positive\n"),hnaIntervalTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1483,7 +1464,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: HNA interval value of \"%s\" is not in seconds\n",hnaIntervalTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HNA interval value of \"%s\" is not in seconds\n"),hnaIntervalTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1497,13 +1478,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble<1 && tempdouble >=0){
 
-	cmd.Printf("-hnaj %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hnaj %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: HNA jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n",hnaJitterTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HNA jitter value of \"%s\" is invalid\n Jitter must be a value between 0-1\n"),hnaJitterTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1511,7 +1490,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: HNA jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n",hnaJitterTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HNA jitter value of \"%s\" is invalid\nJitter must be a value betwwen 0-1\n"),hnaJitterTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1525,13 +1504,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>1){
 
-	cmd.Printf("-hnat %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hnat %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: HNA timeout factor of \"%s\" hnas\n It must be greater than 1\n",hnaTimeoutTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HNA timeout factor of \"%s\" hnas\n It must be greater than 1\n"),hnaTimeoutTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1539,7 +1516,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: HNA timeout factor of \"%s\" is not an number >1\n",hnaTimeoutTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HNA timeout factor of \"%s\" is not an number >1\n"),hnaTimeoutTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1555,7 +1532,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     if(!hys_upTxt->GetValue().ToDouble(&tempdouble)){
 
-      errorMsg.Printf("Error: HYS up value of \"%s\" is invalid\nMust be a value between 0-1\n",hys_upTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HYS up value of \"%s\" is invalid\nMust be a value between 0-1\n"),hys_upTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1563,7 +1540,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>=1 || tempdouble <=0){
 
-	errorMsg.Printf("Error: HYS up value of \"%s\" is invald\nMust be a value between 0-1\n",hys_upTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HYS up value of \"%s\" is invald\nMust be a value between 0-1\n"),hys_upTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1573,7 +1550,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     if(!hys_downTxt->GetValue().ToDouble(&tempdouble2)){
 
-      errorMsg.Printf("Error: HYS down value of \"%s\" is invalid\nMust be a value between 0-1\n",hys_downTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HYS down value of \"%s\" is invalid\nMust be a value between 0-1\n"),hys_downTxt->GetValue().c_str());
 
       waserror=true;
 
@@ -1581,7 +1558,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble2>=1 || tempdouble2 <=0){
 
-	errorMsg.Printf("Error: HYS down value of \"%s\" is invald\nMust be a value between 0-1\n",hys_downTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HYS down value of \"%s\" is invald\nMust be a value between 0-1\n"),hys_downTxt->GetValue().c_str());
 
 	waserror=true;
 
@@ -1593,15 +1570,13 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble<tempdouble2){ //upvalue < down value  
 
-	errorMsg.Printf("Error: HYS down value of \"%s\" is greater than HYS up value of \"%s\"\nup must be > down",hys_downTxt->GetValue().c_str(),hys_upTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HYS down value of \"%s\" is greater than HYS up value of \"%s\"\nup must be > down"),hys_downTxt->GetValue().c_str(),hys_upTxt->GetValue().c_str());
 
 	waserror=true;
 
       } else {
 
-	cmd.Printf("-hys up %f -hys down %f ",tempdouble,tempdouble2);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hys up %f -hys down %f "),tempdouble,tempdouble2));
 
       }
 
@@ -1615,13 +1590,11 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       if(tempdouble>0 && tempdouble <1){
 
-	cmd.Printf("-hys alpha %f ",tempdouble);
-
-	cmdString.Append(cmd);
+	cmdString.Append(wxString::Format(_T("-hys alpha %f "),tempdouble));
 
       } else {
 
-	errorMsg.Printf("Error: HYS alpha value of \"%s\" is invalid\nMust be a value between 0-1\n",hys_alphaTxt->GetValue().c_str());
+	errorMsg.Printf(_T("Error: HYS alpha value of \"%s\" is invalid\nMust be a value between 0-1\n"),hys_alphaTxt->GetValue().c_str());
 
 	waserror= true;
 
@@ -1629,7 +1602,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
     } else {
 
-      errorMsg.Printf("Error: HYS alpha value of \"%s\" is invalid\nMust be a value between 0-1\n",hys_alphaTxt->GetValue().c_str());
+      errorMsg.Printf(_T("Error: HYS alpha value of \"%s\" is invalid\nMust be a value between 0-1\n"),hys_alphaTxt->GetValue().c_str());
 
       waserror= true;
 
@@ -1677,7 +1650,7 @@ void MyFrame::OnSetSettings(wxCommandEvent &event)
 
       cmdString.RemoveLast(); //get rid of last white space char
 
-    theApp->SendSettingsString(cmdString.c_str(),cmdString.Length());
+    theApp->SendSettingsString((const char *)cmdString.mb_str(),cmdString.Length());
 
   }
 

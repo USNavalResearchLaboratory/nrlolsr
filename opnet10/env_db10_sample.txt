@@ -1,0 +1,254 @@
+# OPNET Environment file
+# Created automatically on 15:19:14 Wed Feb 11 2004 for program modeler.
+
+_locale             : "C"
+
+ace_application_capture_promisc_warn: FALSE
+
+ace_preprocessor_progs: op_proconvert_to_enc,
+                      op_proconvert_to_trc
+
+ace_trace_file_dir  : "C:\\Documents and Settings\\pham"
+
+ace_web_report_dir  : "C:\\Documents and Settings\\pham\\op_admin\\ace_web_reports"
+
+bind_shobj_flags    : "/DEBUG /LIBPATH:C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\pc_intel_win32\\lib C:\\PROGRA~1\\MICROS~3\\Vc98\\lib\\WS2_32.Lib"
+
+bind_shobj_prog     : bind_so_msvc
+
+bind_static_flags   : "/Od /LINK /LIBPATH:C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\pc_intel_win32\\lib"
+
+bind_static_flags_devel: /Od
+
+bind_static_prog    : bind_msvc
+
+browser_prog        : "C:\\Program Files\\Internet Explorer\\iexplore.exe"
+
+comp_flags_c++_specific: "/GR /GX /Bd /DWIN32 /D_DEBUG /DSIMULATE /DOPNET /DPROTO_DEBUG /DHAVE_ASSERT /D_WINDOWS /DOPNET_OLSR"
+
+comp_flags_common   : "/W3 /Od -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\NRLOLSR\\OPNET -IC:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\include -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\protolib\\common -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\protolib\\opnet -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\protolib\\Win32 -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\nrlolsr\\common -IC:\\DOCUME~1\\PHAM\\OP_MODELS\\nrlolsr\\opnet\\udp_gen_include_files -IC:\\Progra~1\\Micros~3\\VC98\\Include"
+
+comp_flags_devel    : /Od
+
+comp_flags_mt       : ""
+
+comp_flags_optim    : "/Od /DOPD_NO_DEBUG"
+
+comp_prog_cpp       : comp_msvc
+
+default_flow_analysis_network_mode: IP
+
+last_processed_model_library_version: "10.0 (24-Oct-2003)"
+
+license_group       : 444
+
+license_password    : rainput
+
+license_port        : port_a
+
+license_server      : condor
+
+license_server_standalone: TRUE
+
+license_server_standalone_diagnose: TRUE
+
+license_username    : mchung
+
+manage_loanable_licenses: TRUE
+
+mod_dirs            : "C:\\Documents and Settings\\pham\\op_models\\nrlolsr\\opnet",
+                      "C:\\Documents and Settings\\pham\\op_models\\nrlolsr\\common",
+                      "C:\\Documents and Settings\\pham\\op_models\\nrlolsr\\ns",
+                      "C:\\Documents and Settings\\pham\\op_models\\nrlolsr\\win32",
+                      "C:\\Documents and Settings\\pham\\op_models\\nrlolsr\\unix",
+                      "C:\\Documents and Settings\\pham\\op_models\\protolib\\common",
+                      "C:\\Documents and Settings\\pham\\op_models\\protolib\\opnet",
+                      "C:\\Documents and Settings\\pham\\op_models\\protolib\\win32",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\lib",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\icons",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\images",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\images\\maps",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\configs",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\help",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\sys\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\doc\\modeler\\model_doc\\desc",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\doc\\modeler\\model_doc\\method",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\applications",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\atm",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\atv",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\base",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\bgp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\bridges",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\circuit_switch",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\demands",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\docsis",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\eigrp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\ethcoax",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\ethernet",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\baseline",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\baseline_no_unnum_links",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\with_areas_bad_abr",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\with_areas_broken",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\with_areas_good_abr",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\configs\\with_areas_good_summ",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\traffic",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\traffic\\one_time_period",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\traffic\\time_varying",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\example_networks\\web_reports",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\fc",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\fddi",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\frelay",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\icons",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\igrp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\include",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\inet",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\ip",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\isis",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\jammers",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\lane",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\lapb",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\legacy",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\links",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\llm",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\mainframe",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\mainframe\\Excel",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\manet",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\mobile_ip",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\mpls",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\ospf",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\pnni",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\rip",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\rsvp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\BMC",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\NetIQ",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\NetIQ\\4.0",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\NetIQ\\5.0",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\OpenView",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\OpenView\\nt",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\OpenView\\unix",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\SystemEDGE",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\SystemEDGE\\nt",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\servers\\agents\\SystemEDGE\\unix",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\sip",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\sna",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\srp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\tcp",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\tmm",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\tpal",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\tr",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\traf_gen",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\umts",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\design",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\device_creator",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\device_creator\\generic",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\device_creator\\vendor",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\import",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\import\\rci",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\import\\vnes",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\oms",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\packet_analyzer",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\udr",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\utilities\\views",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\web_reports",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\wireless",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\wireless_lan",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\x25",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\std\\xdsl",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\3Com",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\ADC",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Alteon",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\AMD",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\antenna_models",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Ascend",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Avici",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Bay_Networks",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Brocade",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Cabletron",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Cisco_Systems",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Compaq",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Coyote_Point",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Dell",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Equipe",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Extreme",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\f5",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Fore_Systems",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Foundry_Networks",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Hewlett_Packard",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\IBM",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Intel",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Juniper_Networks",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Lucent",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\McData",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Motorola",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Nec",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\NET",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Newbridge",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Nortel",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Radware",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Sun",
+                      "C:\\PROGRA~1\\OPNET\\10.0.A\\models\\vendor_models\\Xylan"
+
+model_assistant_configuration_file: ma_config.gdf
+
+model_assistant_load_file_default: ""
+
+model_assistant_save_file_default: ""
+
+net_report_link_detail_attrs: tooltip,
+                      "financial cost"
+
+net_report_link_summary_attrs: tooltip,
+                      "financial cost"
+
+net_report_node_detail_attrs: tooltip,
+                      "financial cost"
+
+net_report_node_summary_attrs: tooltip,
+                      "financial cost"
+
+network_palette     : custom_model_list,
+                      internet_toolbox
+
+obj_dbox_headers    : "'Type:', '', , selfdesc:'machine type'",
+                      "'Make:', '', , selfdesc:'System Object ID'|selfdesc:'vendor'"
+
+opnet_dir           : "C:\\PROGRA~1\\OPNET"
+
+print_page_limit    : 300
+
+product             : modeler
+
+product_options     : wireless
+
+tmm_data_directory  : ""
+
+tmm_data_type       : "USGS DEM"
+
+tooltip.demand_attributes: model,
+                      name
+
+tooltip.link_attributes: tooltip,
+                      name,
+                      "transmitter a",
+                      "transmitter b",
+                      transmitter,
+                      receiver,
+                      "data rate"
+
+tooltip.path_attributes: tooltip,
+                      name
+
+tooltip.site_attributes: tooltip,
+                      name
+
+traffic_archive_dir : "C:\\Documents and Settings\\pham\\op_models"
+
+vudoc_prog          : "C:\\Program Files\\Adobe\\Acrobat 6.0\\Reader\\AcroRd32.exe"
+
+word_processing_prog: "C:\\Program Files\\Windows NT\\Accessories\\WORDPAD.EXE"
+

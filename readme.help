@@ -1,0 +1,334 @@
+For installation instruction view readme file in system in which you are trying to install.  This file gives
+nrlolsr options and featurs as well as current state of code updates.
+
+Nrlolsr::options -i <interfacename>[-d <debuglvl>][-l <debuglogfile>][-al on | off][-h][-v]
+		 [-w <willingness>][-hna auto|<filename>|off][-b <broadaddr> <masklength>]
+             [-hi <HelloInterval>][-hj <HelloJitter>][-ht <HelloTimeoutfactor>][-hp <HelloPadding>]
+             [-tci <TCInterval>][-tcj <TCJitter>][-tct <TCTimeoutfactor>][-ipv6][-ipv4]
+             [-hnai <HNAInterval>][-hnaj <HNAJitter>][-hnat <HNATimeoutfactor>]
+             [-hys up <upvalue> | down <downvalue> | alpha <alphavalue> | on | off][-slowdown on | off]
+             [-qos <qosvalue>][-fuzzy on | off][-shortesthop][-spf][-minmax][-mnmport <portnumber>]
+             [-link <address> up | down | default | spf <weight> | minmax <weight> | promisc <weight>]/
+             [-unicast on | off] [-recordhellohistory on | off] [-fastreroute on | off]
+             [-flooding off | s-mpr | ns-mpr | not-sym | simple | ecds | mpr-cds]
+             [-unicast on | off] [-fdelay <MaxForwardDelay>]   
+
+OPTIONS
+	-i 	interfacename: is device name of interface that olsr is to run on. default = N/A 
+
+	-d 	debuglvl: is value between 0-10.  default = 0
+
+	-l 	debuglogfile: is file location/name that debugging information is logged. default is stderr
+
+	-al	All links option.  This option is basically sets the TC_REDUNDANCY = 2 as described in v11 olsr default = off
+
+	-h      Display usage.
+	
+	-v      Display version number.
+	
+	-b      Set broadcast address network. <broadaddr> is an ip address string and <netmask> is the mask length.  
+		default(IPv4) = <broadaddr>  = 224.0.0.57     (was selected at random from un-assigned local multicast address space)
+			        <masklength> = 32
+		default(IPv6) = <broadaddr>  = ff02::705  (selected at random from the link local address space)
+			        <masklength> = 128
+
+	-w      Willingness value between 0 and 7.  7 will always be mpr 0 will never be mpr.  default = 3
+
+	-hna	Auto will look interfaces not defined by -i interfacename and advertize network routes.  
+		filename: is the file with list of HNA network addresses to advertize in the format 
+			HNA <networkaddress> <masklength>
+			HNA <networkaddress> <masklength>
+		off will turn sending HNAs out off
+		default(IPv4) = auto
+		default(IPv6) = off (IPv6 mode does not currently have auto option)	
+
+	-hi 	HelloInterval: is hello sending interval to be used in seconds. default = .5
+		(spec v8 default = 2)
+
+	-hj	HelloJitter: is percent of HelloInterval to jitter.  Values from 0 up to 1 are valid.  default = .5
+		(jitter is done in different mannor than v8 spec.  Jitter value does not effect the 
+			average HelloInterval even over moderate intervals.)
+	
+	-ht 	HelloTimeoutfactor: is value greater than 1 which multiplied with HelloInterval defines Neighbor Hold Time.  default = 6
+		(spec v8 default = 3)
+		(neighbor timeouts are done according to v4 spec Vtime is not yet implemented on recieving)
+		(there is an issue in how two hop neighbors are stored which makes it hard to change runtime.  As of right now two hop neighbors
+		 are held for 6 seconds since last update and this value is not changed with different intervals or timeouts.  To change this 
+		 you must change the value of the global variable Neighb_Hold_Time to whatever you want the hold time to be then recompile. 
+		 This is being  worked on.)
+
+	-hp     HelloPadding: is a value between 0-1500.  All hello message sent with this option will be of at least size HelloPadding.  
+		Padding of all zeros will be added to the end of all messages.  This is NOT normal OLSR operation and may cause other 
+		implimentations to crash!  Only use this option when you are using all nrlolsr operating nodes.  
+		
+		This we added so that a "better" measure of link quality may be measured using larger packets which better reflects the non-routing
+		traffic.
+
+	-tci	TCInterval: is TC sending interval to be used in seconds. default = 2
+		(spec v8 defalut = 5)
+
+	-tcj	TCJitter: is percent of TCInterval to jitter.  Values form 0 up to 1 are valid. default = .5
+		(jitter is done in different mannor than v8 spec.  Jitter value does not effect the 
+			average HelloInterval even over moderate intervals.)
+	
+	-tct 	TCTimeoufactor: is value greater than 1 which multiplied with TCInterval defines topology tuple hold time. default = 3
+
+	-ipv6   OLSR will operate with ipv6 addresses.  -hna auto option does not currently work with this option.
+
+	-ipv4   OLSR will operate with ipv4 addresses.  This is the default mode.
+
+	-hnai 	HNAInterval: is HNA sending interval to be used in seconds. default = 15
+		(spec v8 default = 5)
+	
+	-hnaj	HNAJitter: is percent of HNAInterval to jitter. Values from 0 up to 1 are valid. default = .1
+		(jitter is done in different manner than v8 spec.  Jitter value does not effect the 
+			average HelloInterval even over moderate intervals.)
+
+	-hys	up <upvalue>: where upvalue is number between 0 and 1 that defines HYST_THRESHOLD_HIGH. default = .4
+
+		down <downvalue>: where downvalue is number between 0 and 1 that defines HYST_THRESHOLD_LOW. default = .15
+		(only values for up and down make sense when up is larger than down bad things will happen if set incorrectly)
+
+		alpha <alphavalue>:  where alphavalue is number between 0 and 1 that defines HYST_SCALING (weight of past). default = .7
+	
+		on: turns hysteresis on with default values.  Is on by default.
+		
+		off: turns hysteresis off by setting values of up down and alpha so that it does virutally nothing.
+		(will have an effect if timeout values are VERY large)
+
+	-qos    Qos value to mark OLSR packets with.  Is off by default.
+
+	-fuzzy  on: will turn on fuzzy sighted flooding for tc and hna messages.  As of release 7.3 this is tested very little.
+
+		off: will revert to normal full network floodin for tc and hna messages. This is the default mode of operation.
+
+	-slowdown on: Will turn on slowdown option. TC intervals will be doubled after 3 successive sent tcs with the same addresses.
+                      If the TC message to be sent would be different the tc interval is reset to the base -tci value and slowdown 
+                      attempted again.  This option has not be thoughly tested esp in conjunction with the -fuzzy option.
+
+                  off: Will revert to normal tc message sourcing. This is the default mode of operation.
+
+	-fastreroute on: Will re calculate the routing table when changes which may effect routing are detected.  This can overburden the cpu
+                         with large networks but most often will work well. This is the default mode of operation.
+  
+                     off: Routes are calculated every hello interval.  Only use this option if nrlolsr is using too much CPU as routing will
+			  be degraded when using this option.
+
+	-shortesthop
+		Normal operation of route calculation using shortest hop paths. Is the default mode of operation.
+
+	-spf 
+		Shortest path first route calculation using spf information sent around in modified tc messages.  If
+		using this option make sure all nodes in the network are operating with this option as routing loops and 
+		other unwanted behavior will occur. Default = off
+
+	-minmax
+		Route calculations will result in paths which have the maximum minimum link metric.  The metrics
+		are sent around using modified tc messages. If using this option make sure all nodes in the network are operating
+		with this option as routing loops and other unwanted behavior will occr. Default = off
+
+	-unicast 
+                Unicast routing option.  This option when set to off will turn off all unicast routing. Route tables will not be updated
+                TC and HNA messages will not be sent, and route calcuations will not be performed.  SMF (-flooding) operations and HELLO 
+                messages will continue to work in this mode.  default = on
+
+      -recordhellohistory
+		When set to on olsr will write to the debug log file the history of recieved hello messages. Default = off.
+
+
+	-mnmport 
+		Sets the port that nrlolsr will listen to for mnm specific mac layer packets.  All mnm mac layer packets
+		use only the -link process commands functionality. Default = 4999.
+
+	-link
+		The link option sets the various values for a neighbor link.  It is always followed by the address of neighbor.
+		
+		up:    	Will bring a link up.  Some problems may result if this function is called in simulation when the neighbor 
+			is not in range.
+
+		down:   Will take a link down and cleaning remove the two hop links.
+
+		default: Will return the link to normal operation.
+		
+		spf: 	Sets the link shortest path first value <weight>.  This value will be sent around to all nodes using a modified
+			tc message format if the -spf option has been used. It is an 8 bit value with a valid range of 0-255.
+
+		minmax: Sets the link maximum minimum value to <weight>.  This value will be sent around to all nodes using a modified
+			tc message format if the -minmax option has been used. It is an 8 bit value with a valid range of 0-255.
+
+		promisc: This option currently doesn't do anything.  It is meant to provide a count of the number of packets heard on the
+			givin link.
+
+	-flooding
+		If you are interested in simplified multicast flooding methods for MANET in real systems check out nrlsmf (works with 
+                nrlolsr). Broadcast packets which are forwarding on port 699 will be treated as multicast packets.  The type of simplified 
+                multicast flooding method is defined by the next option. All options use duplicate packet detection to avoid broadcast 
+                storms. 
+		
+		off:	No flooding/forwading will take place.
+
+		s-mpr: 	Source specific multi-point relay trees will do flooding of broadcast packets on port 699. (Regular mpr flooding)
+	
+		ns-mpr: Non-source specific multi-point relay trees will flood broadcast packets on port 699. (All mpr nodes flood)
+
+		not-sym: Symetric one hop neighbors will not forward packets.  Like s-mpr option only asymetric neigbhors packes
+			will be forwarded.  Allowing for faster forwarding at the cost of potential extra overhead.
+
+		ecds:   Uses shared tree to forward data and passes that information to smf.  Decision to forward is based upon
+			algorithm proposed for MANET OSPF by Richard Ogier.  Only the essential forwarding is implimented.
+
+		mpr-cds: Uses shared tree to forward data and passes that information to smf.  Decision to forward is based upon
+			 algorithm described in inria paper "On the robustness and stability of Connected Dominating Sets"
+
+		simple: All nodes will forward broadcast packets on port 699. 		
+
+	-unicast
+		This option allows disabling of unicast routing.  It is intended for use in conjunction with nrlsmf (multicast 
+		routing) to lower network overhead and cpu usage.
+
+		on: This is the default mode of operation.  Communication with nrlsmf still occurs when this is turned on allowing for
+			multicast routing with unicast routing.
+
+		off: This setting will disable the sourcing of both TC and HNA messages.  Unicast routing calculations will also not occur.
+			Hello message will be sent and processed as normal.  Communication with nrlsmf occurs based on the -flooding option 
+			as specified.  This option should only be used when using nrlolsr as a neighbor discovery mechinism for nrlsmf and 
+			unicast routing is not desired.
+
+	-fdelay
+		This feature allows for random delay in forward to help mitigate the hidden terminal problem.  Instead of having OLSR messages 
+		being directly sent they are held and argrated in one OLSR packet for a jittered amount of time.  The wait time for a message, 
+		given no currently held messages, is set to a random number between 0 and MaxForwardDelay.  If a message is currently being 
+		held for sending the new message is appened into the same OLSR packet and sent along with the other held messages.  If the
+		packet size would become too large (1500 bytes) by adding a new message, the currently held packet is sent off and a new packet 
+		is produced using the new message and held for a newly generated hold time.
+		
+		MaxForwardDelay: is the maximum amount of time a messages is to be held before forwarding.  This time is in seconds and must 
+			be positive.  
+
+	
+Notes:  This piece of code started in ns2 at version 4 of the olsr specifications.  It has evolved and is evolving to try and keep up.
+	All underlying timers are periodic and jitter is added to this periodic ticking.  This keep Intervals at numbered values and 
+	allows maximum jitter. Neighbor storage is complicated and even I don't understand half of it anymore.  It works and that 
+	is all I care about right now.  certain reserved fields were used in the past to do load balancing work and the code is still in 
+	there for parts of it.  MIDs as defined in version 8 and 9 of the olsr spec have not be implimented.  Though some code has been 
+	added so that it may be done in the future.
+	
+	There is a function updateSM() which writes to shared memory at location /tmp/mprsel.  Other processes can look at this memory and
+	see who has selected this node for forwarding in the olsr code at the current time.
+
+	Because of the introduction of Vtime (validity time) in Olsr packets different nodes in the same network can function together with
+	differing tc hna and hello intervals.  The hysterises function does not work with Vtime as of this release.  So if nodes are going 
+	to have different hello intervals make sure to use the "-hys off" option.
+
+	I have noticed that a good amount of cpu time is used by the code.  I will  be addressing this issue in the future.  If the cpu is
+	being overworked (use top) I would recomend using a slower hello and tc timer. (v8 spec 2 and 5)  Because of this speed issue I 
+	have commented out the DMSGs.  Feel free to uncomment them as you wish to get a feel for what is going on.
+
+  Release 4.8 (ipv4 only)
+	Future  work:
+		I will be adding ipv6 support.  (done)
+		Fix Vtime Htime and LinkCodes in packets. (Vtime is done, Htime sent but not used, LinkCodes sent correct but not finished) 
+		Develop code to support windows platforms and ns2. (up next)
+		Clean code?!? I don't think so! Though I will try to comment better where needed.
+		I would like to link my nrlolsr directory to the protolib code instead of putting it in the directory.(done)
+	
+  Release 5.0 (v6 support!)
+	Future work:
+		Speed up the code.  Mainly by replacing the linked list with something faster.
+		Get hysterises functioning with the Vtime and Htime correctly.
+		Add code to automaticly find hna's when ipv6 mode is turned on.
+		Maybe add MID packet support for use with more than one wireless interface.
+
+  Release 5.1 
+		small bug fixes
+  Release 5.2 
+		Important bug fixes.  Fixed bug in which asymetric links would sometimes not time out correctly.  Found and fixed bug in which 
+		default routes added by HNAs would not update correctly when node moves away (linux only problem).  
+		Added command line quality of service marking option.  Packets can now be marked with a given qos value.  How that value is used
+		is the users choice.  Also included is Makefile.arm-linux.  You will need a cross compiler to make a binary.  I have only confirmed
+		that it works under open zarus.  It does not work under normal zarus os.
+
+  Release 5.3   
+		More Important bug fixes.  Fixed bug in ttl and hop count fields in both hna and tc messages.  They now decrement and count up.
+		Fixed problem with changing timer intervals.  Old code does not change intervals via the command line correctly.
+		New feature added.  Debug lvl 2 now outputs hna information as well as link state information.  This information will be used 
+		by the upcomming cmap visulization tool.  Debug lvl 1 will only output the links though both std/cmap and jmap should be able 
+		to deal with the extra info.
+
+  Release 5.4  
+		Changed way hna information is outputed so that all information is outputed not just what is being used.  
+  Release 6.0 
+		Windows support!  Moved code over to newer protolibkit library.  Will allow for easier platform portability.  Cleaned up the 
+		code a bit.  Removed older make routing table functions that were not being used. Also added a few more comments.  Found and 
+		fixed bug in hystersis method which would cause unstable links in some cases.  Messages are no longer sent using broadcast 
+		but a multicast address in ipv4 mode.  Broadcast support may or may not work using the command line option.  
+
+  Release 6.1 
+		Fixed minor typo bug which would cause 6.0 not start correctly when attempting to use the -ipv6 option.
+
+  Release 7.0beta
+                Code now works with both ns-2 and WinCE.  Inststallation instructions are located in the respective directories.  Testing
+                needs to be performed to find bugs which may have been introduced while porting to new operating systems.
+
+  Release 7.1 
+	        Code changes to protolib updated nrlolsr to work with those updates.
+
+  Release 7.2 
+                Added support to opnet 10.  Fixed routing bugs in core code which would incorrectly calculate routes in some cases.  Fixed
+		bug in unix ipv4 mode which shared memory code would overwrite variables not belong to it.  Fixed bug in selecting mprs, old
+		code could ignore some one hop neighbors in certain situations.  Various protolib updates, major one being IPv6 fix for unix.
+  Release 7.3 
+		Fixed a bug which would sometimes allow for empty tc message to be sent out and in the process, in rare occations, cause
+		crashing.  Added new options for setting link metrics and routing using that information.  Both shortest path first and
+		maximum minimum path routing is now possible.  Other minor bugs fixed.  Mnm project specific mac packet parsing added to
+		change the link metrics on the fly added.  Also added fuzzy sighted flooding as an option.  When turned on it will flood
+		tc and hna messages only a certain distance into the network depending on the time that the hna/tc is sent.
+  Release 7.3.1 
+		Fixed ProtoManetKernel so that nrlolsr now works with ns-2.27.
+
+  Release 7.4  
+		Fixed bugs with fowardwarding section of code.  One had to do with a bracket being too high up and the other had to do with
+		the ttl factor.  Also fixed tc mssn wrap around code which was old and had a typo.  Switched how fuzzy sited option works.
+		Add another -slowdown option which when turned on will attempt to slow down the tc message if the neighborhood is logically
+		static.  WARNING both -slowdown and -fuzzy options are not currently specified anywhere and have been tested very little 
+		use at your own risk.
+
+  Release 7.5
+		Fixed a few minor bugs.  One would cause a crash when hna routes were removed, in linux, with debuging 3 or higher turned on.  
+		Added protoPipe support.  You can now use protoPipe (non-simulation only) to send command line options to olsr while olsr is 
+		running.  Check out the protoPipeExample in the protolib directory for an example of how another program can talk to NRLOLSR.  
+		The NRLOLSR server pipe is named "nrlolsr_server"  There will be an option to change this name durring startup as well.  
+		Also added is extra debuging/network information output, for linux, of neighbor information send to stdout.  This output will
+		only be printed with debug level 1 or higher.  I have done some rough compile and run testing to clean the code back up for 
+		release but there may be a 7.5.1 version comming out soon if people catch something I missed.
+ Release 7.6
+		Methods added to support Simplified Multicast Flooding for both real world and ns2 simulations.  Added interface support 
+		for nrlsmf, NRL's version for Simple Multicast Forwarding in MANETs, through piping.  The NRLOLSR default server pipe name 
+		has changed from "nrlolsr_server" to "nrlolsr".  For ns protoManetKernel and nrlolsrAgent have been changed quite a bit 
+		to support smf behavior in the ns environment. 
+ Release 7.7 
+		New gui!  The gui works under linux, windows, and windowsce. Nrlolsr now interfaces with nrloslrgui.  Methods and a new 
+		pipe were added to interface with the gui. Because of the gui interface some minor modifications were done with the command 
+		line options (they can now be changed durring operation). Modification to duplicate detection method to allow for correct 
+		performance.  This was a previously undiscovered bug.
+
+ Release 7.7.1
+		Added -hp which allows the user to set a minimum hello size.  This should only be used with an all nrlolsr network as it may
+		cause other OLSR implimenations to break.  
+
+ Release 7.7.2 
+		Added -unicast option which allows user to turn off unicast routing.  This option when set to off will turn off all tc and hna messages.
+                Routes will not be calcuated and will not be added to unicast routing tables.  Hello message will be sent and smf -flooding options will 
+                continue to work if used.
+ Release 7.8beta
+		Fixed some bugs dealing with asymetric links in small networks which would break routing in certain cases.  Fixed bugs with protopipes
+		in windows which allows for olsrgui to now work.  Fixed bug in which interval times would not change correctly via gui commands. Added 
+                fastreroute option to allow for less cpu usage with standard operation in large networks.  Many updates to opnet build.
+ Release 7.8.0
+		Fixed bug introduced between 7.7.2 and 7.8beta which cause neighbor link state to become unstable.  A delayed fowarding feature was added
+		which enables agragation of multiple messages into one packet and can may help mitigate hidden terminal problems which arise when
+		flooding TC messages.  A new command line option to disable unicast routing was also intoduced to allow deployment of multicast only
+		enabled networks without unneeded overhead of a unicast routing protocol.  Changed the reserved field in the olsr packet header to 
+		a packet seqno to reflect the latest draft.
+Release 7.8.1
+		Fixed ns2 bugs related to duplicate tree dependancies on changes of protoTree.

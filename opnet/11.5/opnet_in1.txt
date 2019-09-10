@@ -1,0 +1,63 @@
+C:\PROGRA~1\OPNET\10.0.A\sys\pc_intel_win32\bin\op_runsim
+    -opnet_user_home C:\Documents and Settings\pham
+    -net_name olsr_-5_node
+    -child_id 0
+    -opnet_port 1632
+    -parent_pid 2848
+    -debug
+    -noprompt
+    -ef olsr_-5_node
+    -console_exit_pause
+
+Content of auto-generated environment file (olsr_-5_node)
+
+"_locale" : "C"
+"ARP Sim Efficiency" : "enabled"
+"Background Traffic Start Delay" : "150"
+"comp_trace_info" : "TRUE"
+"DSR Record Routes" : "disabled"
+"DSR Routes Export" : "disabled"
+"duration" : "300"
+"IGMP Sim Efficiency" : "enabled"
+"IMEP Route Injection" : "disabled"
+"IP Dynamic Routing Protocol" : "Default"
+"IP Interface Addressing Mode" : "Auto Addressed"
+"IP Routing Table Export/Import" : "1"
+"log_file" : "olsr_-5_node"
+"LSP Signaling Protocol" : "1"
+"max_log_entries" : "200"
+"ND Sim Efficiency" : "Enabled"
+"OLSR hello_intvl" : "0.5"
+"OLSR hello_jitter" : "0.1"
+"OLSR hello_timeout_factor" : "6.0"
+"OLSR HNA_intvl" : "15"
+"OLSR HNA_jitter" : "0.1"
+"OLSR HNA_timeout_factor" : "90"
+"OLSR min_tc_intvl" : "1.0"
+"OLSR neighbor_timeout_mult" : "8"
+"OLSR polling_intvl" : "0.02"
+"OLSR tc_intvl" : "2.0"
+"OLSR tc_jitter" : "0.1"
+"OLSR tc_timeout_factor" : "5.0"
+"OLSR topology_timeout_mult" : "5"
+"OLSR Willingness" : "0"
+"ov_file" : "olsr_-5_node"
+"probe_start_time" : "0"
+"Routing Activity Idle Timer" : "20"
+"seed" : "128"
+"TORA Animated Destination RID" : "-1"
+"TORA IMEP Animation Refresh Interval" : "10"
+"TORA IMEP Efficiency" : "disabled"
+"TORA IMEP Packet Delivery Cache Update" : "100"
+"TORA Infinite Loop Prevention" : "disabled"
+"TORA Max Communication Distance" : "1150"
+"TORA Mode of Operation" : "2"
+"Tracer Packet Redundancy" : "1"
+"Tracer Packets Per Interval" : "2"
+"Traffic Scaling Factor" : "1.0"
+"update_interval" : "1000000"
+"verbose_load" : "true"
+"verbose_sim" : "true"
+"WLAN AP Connectivity Check Interval" : "10"
+"WLAN Beacon Efficiency Mode" : "enabled"
+"WLAN Transmission Candidacy" : "disabled"

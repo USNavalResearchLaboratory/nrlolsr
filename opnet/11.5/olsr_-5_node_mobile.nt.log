@@ -1,0 +1,76 @@
+[Environment]
+duration=600.000000
+seed=128
+net_name=olsr_-5_node_mobile
+sim_log_delim=TAB
+
+[Run Info]
+run_date=10:31:16 Tue Jun 28 2005
+
+[Log Entries]
+0	87	Campus Network.mobile_node_Xcom	Config.	IP	Model_Configuration_Error	WARNING: <NL>  IP process detected that the subinterface <NL>  name "Not Configured" occurs more than once <NL>  under the "PIM Parameters" attribute. <NL>   <NL> SUGGESTION: <NL>  1. Make sure that interface names are unique <NL>     within each node. This must be true across all <NL>     physical, loopback and tunnel interfaces, <NL>     as well as subinterfaces. <NL>  2. Change the interface name of the above interface. <NL>     Interface names are configured using <NL>     "IP Routing Parameters" attribute. <NL>  
+0	87	Campus Network.mobile_node_Xcom	Protocol	IP	Protocol_Warning	WARNING(S): <NL>  The OMS Process Discover  <NL>  has found either none or  <NL>  multiple instances of the  <NL>  protocol rip. <NL>   <NL> ACTION(S): <NL>  Ensure that the node model contains <NL>  the process model that that is being  <NL>  searched for.  <NL>   <NL>  
+0	93	Campus Network.mobile_node_1	Config.	IP	Model_Configuration_Error	WARNING: <NL>  IP process detected that the subinterface <NL>  name "Not Configured" occurs more than once <NL>  under the "PIM Parameters" attribute. <NL>   <NL> SUGGESTION: <NL>  1. Make sure that interface names are unique <NL>     within each node. This must be true across all <NL>     physical, loopback and tunnel interfaces, <NL>     as well as subinterfaces. <NL>  2. Change the interface name of the above interface. <NL>     Interface names are configured using <NL>     "IP Routing Parameters" attribute. <NL>  
+0	93	Campus Network.mobile_node_1	Protocol	IP	Protocol_Warning	WARNING(S): <NL>  The OMS Process Discover  <NL>  has found either none or  <NL>  multiple instances of the  <NL>  protocol rip. <NL>   <NL> ACTION(S): <NL>  Ensure that the node model contains <NL>  the process model that that is being  <NL>  searched for.  <NL>   <NL>  
+0	99	Campus Network.mobile_node_2	Config.	IP	Model_Configuration_Error	WARNING: <NL>  IP process detected that the subinterface <NL>  name "Not Configured" occurs more than once <NL>  under the "PIM Parameters" attribute. <NL>   <NL> SUGGESTION: <NL>  1. Make sure that interface names are unique <NL>     within each node. This must be true across all <NL>     physical, loopback and tunnel interfaces, <NL>     as well as subinterfaces. <NL>  2. Change the interface name of the above interface. <NL>     Interface names are configured using <NL>     "IP Routing Parameters" attribute. <NL>  
+0	99	Campus Network.mobile_node_2	Protocol	IP	Protocol_Warning	WARNING(S): <NL>  The OMS Process Discover  <NL>  has found either none or  <NL>  multiple instances of the  <NL>  protocol rip. <NL>   <NL> ACTION(S): <NL>  Ensure that the node model contains <NL>  the process model that that is being  <NL>  searched for.  <NL>   <NL>  
+0	105	Campus Network.mobile_node_3	Config.	IP	Model_Configuration_Error	WARNING: <NL>  IP process detected that the subinterface <NL>  name "Not Configured" occurs more than once <NL>  under the "PIM Parameters" attribute. <NL>   <NL> SUGGESTION: <NL>  1. Make sure that interface names are unique <NL>     within each node. This must be true across all <NL>     physical, loopback and tunnel interfaces, <NL>     as well as subinterfaces. <NL>  2. Change the interface name of the above interface. <NL>     Interface names are configured using <NL>     "IP Routing Parameters" attribute. <NL>  
+0	105	Campus Network.mobile_node_3	Protocol	IP	Protocol_Warning	WARNING(S): <NL>  The OMS Process Discover  <NL>  has found either none or  <NL>  multiple instances of the  <NL>  protocol rip. <NL>   <NL> ACTION(S): <NL>  Ensure that the node model contains <NL>  the process model that that is being  <NL>  searched for.  <NL>   <NL>  
+0	111	Campus Network.mobile_node_4	Config.	IP	Model_Configuration_Error	WARNING: <NL>  IP process detected that the subinterface <NL>  name "Not Configured" occurs more than once <NL>  under the "PIM Parameters" attribute. <NL>   <NL> SUGGESTION: <NL>  1. Make sure that interface names are unique <NL>     within each node. This must be true across all <NL>     physical, loopback and tunnel interfaces, <NL>     as well as subinterfaces. <NL>  2. Change the interface name of the above interface. <NL>     Interface names are configured using <NL>     "IP Routing Parameters" attribute. <NL>  
+0	111	Campus Network.mobile_node_4	Protocol	IP	Protocol_Warning	WARNING(S): <NL>  The OMS Process Discover  <NL>  has found either none or  <NL>  multiple instances of the  <NL>  protocol rip. <NL>   <NL> ACTION(S): <NL>  Ensure that the node model contains <NL>  the process model that that is being  <NL>  searched for.  <NL>   <NL>  
+0.000322814722129	138	Campus Network.mobile_node_Xcom	Config.	Wireless LAN	Distance Limit Exceeded	WARNING: <NL>  The propagation delay between the two WLAN nodes of same BSS <NL>   <NL>  Campus Network.mobile_node_Xcom and <NL>  Campus Network.mobile_node_1 <NL>   <NL>  is greater than the maximum propagation delay allowed by the <NL>  IEEE 802.11 WLAN standard, which is 1 microsecond. Due  <NL>  to violation of this rule, a degradation of WLAN <NL>  performance is possible within the BSS of these nodes. <NL>   <NL>  This message will not be repeated even if the same condition <NL>  is detected between two other WLAN nodes in the network. <NL>   <NL> SUGGESTION: <NL>  Bring these nodes closer to each so that the distance <NL>  between them is less than 300 meters if you want the <NL>  configuration of these nodes to comply with the rules of the <NL>  802.11 standard fully. <NL>  
+600	3050119	Campus Network.mobile_node_Xcom	Results	IP	Results	SUGGESTION(s): <NL> You might be able to improve the performance of this simulation <NL> by configuring the 'IP Source Dest Pairs' environment attribute <NL> as described below. Note that the value of this attribute will <NL> not affect the results of the simulation. <NL>   <NL> The IP forwarding mechanism can be tuned to maintain peak <NL> performance while simulating large IP networks. The trade off is <NL> that higher values of this attribute will require more memory. <NL> The optimal value can be calculated as the maximum number of <NL> unique IP source destination pairs that will pass through any <NL> IP routing node in the network. <NL>   <NL> The first value given below is the value used for this <NL> simulation. It was either configured explicitly through the <NL> environment attribute or estimated before the simulation based <NL> on various parameters such as the number of nodes and demands. <NL> The recommended value given is a more accurate estimate computed <NL> after the simulation. <NL>   <NL> Estimated/Configured value: 1 <NL> Recommended value: 4 <NL>   <NL> ACTION(s): <NL> 1. If the estimated value and optimal values are close or if <NL>    performace is not a critical issue for this simulation, <NL>    this message may be ignored. <NL> 2. If the above values are significantly different from each <NL>    other and simulation performance is important, set the value <NL>    of the environment attribute `IP Source Dest Pairs' through an <NL>    environment (.ef) file. Please refer the product documentation <NL>    for more information on environment files and how to use them. <NL> 3. This attribute does not have to be set to the optimal value <NL>    suggested above. Setting this attribute to a higher value might <NL>    increase simulation performance with the trade off that memory <NL>    usage will also increase. Similarly, a lower value may be used <NL>    to decrease memory usage by sacrificing performance. <NL> 4. To disable the printing of this log message set the boolean <NL>    environment attribute 'IP Source Dest Pairs Log' to 'disabled' <NL>  
+ 	3050124	<N/A>	Low-Lev.	Simulation	Summary	Program: op_runsim (3024) <NL> Kernel: development (not optimized), sequential, 32-bit address space <NL> Events: Total (3,050,125), Average Speed (93,028 events/sec.) <NL> Time: Elapsed (33 sec.), Simulated (10 min. 0 sec.) <NL> Memory: general (3,307 kb), categorized (5,946 kb), pooled (9,478 kb), total (18,731 kb)
+
+[Summary]
+Low-Lev.	Simulation	Error	0
+Config.	RIP	Attribute Settings	0
+Config.	RIP	Neighbor Modules	0
+Config.	UDP	Neighbor Modules	0
+Protocol	RIP	Timeouts	0
+Protocol	UDP	Packet Drop	0
+Results	RIP	Performance	0
+Low-Lev.	UDP	LLM Related	0
+Low-Lev.	UDP	Create Local Port	0
+Low-Lev.	RIP	Create UDP Receive Port	0
+Config.	RIP	Routing Table Configuration	0
+Protocol	IP	Higher Layer Protocol Register	0
+Low-Lev.	TCP	Kernel_Error	0
+Config.	TCP	Setup	0
+Protocol	TCP	Data_Transmission	0
+Config.	Wireless LAN	MAC Configuration	0
+Protocol	Wireless LAN	Data packet Drop	0
+Low-Lev.	IP	Address_Mapping_via_NATO	0
+Protocol	IP	Protocol_Error	0
+Protocol	IP	Protocol_Warning	5
+Config.	IP	Model_Configuration_Error	5
+Config.	IP	Model_Configuration_Warning	0
+Low-Lev.	IP	KP_Invocation_Error	0
+Results	IP	Unexpected_Results	0
+Protocol	IP	Packet Drop	0
+Protocol	IP	Wireless2Intf_Auto_Assignment_Warning	0
+Protocol	IP	Static_Auto_Assignment_Warning	0
+Results	IP	Results	1
+Config.	Server	Undefined_Server	0
+Config.	Server	Undefined_Job_Class	0
+Config.	Server	Target != Measured	0
+Config.	Server	Disk_Access	0
+Config.	Server	Disk_Definition	0
+Config.	Server	Raid	0
+Config.	Server	Job_Definition	0
+Config.	Server	Attribute_Definition	0
+Config.	Server	Advanced_Server_Configuration	0
+Low-Lev.	Server	Missing_Child_Process	0
+Low-Lev.	Server	Disk	0
+Low-Lev.	Server	Job_Interarrival	0
+Low-Lev.	Server	Missing_Information	0
+Low-Lev.	Server	Missing_Attribute	0
+Low-Lev.	Server	Invalid_Event_Handle	0
+Low-Lev.	Server	Remote Storage Access	0
+Low-Lev.	Server	Instance_Internal	0
+Results	ICMP	Performance	0
+Protocol	ICMP	Timeout	0
+Config.	IGMP Host	Model_Configuration_Warning	0
+Low-Lev.	IGMP Host	Model_Internals_Error	0
+Config.	Wireless LAN	Distance Limit Exceeded	1
+Low-Lev.	Simulation	Summary	1

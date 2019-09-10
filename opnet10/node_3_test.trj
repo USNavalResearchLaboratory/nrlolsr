@@ -1,0 +1,12 @@
+Version: 2
+Position_Unit: Meters
+Altitude_Unit: Meters
+Coordinate_Method: relative
+Altitude_Method: absolute
+locale: C
+Coordinate_Count: 4
+# X Position        Y Position          Altitude            Traverse Time       Wait Time           
+0                   ,0                   ,0                   ,0h0m0.00s           ,0h0m0.00s           
+189.555             ,-259.187            ,0                   ,0h0m23.12s          ,0h0m0.00s           
+396.518             ,17.4081             ,5                   ,0h51m49.09s         ,0h0m0.00s           
+470.019             ,334.622             ,0                   ,0h2m47.46s          ,0h0m0.00s           

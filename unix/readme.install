@@ -1,0 +1,17 @@
+Nrloslrd Build Instructions.  
+
+1.  Make sure you have nrlolsr/protolib directory with protolib source code.
+    (if you downloaded from tar file you don't need to worry about this)
+2.  Type make -f Makefile.(appropriate os here) to build nrlolsr.
+    example: for linux type "make -f Makefile.linux"
+3.  The resulting nrlolsrd binary must be run as root. 
+
+Olsrgui Build Instructions
+1.  Same as step one of above.
+2.  Install wx widgets by going to www.wxwidgets.com and following 
+    their instructions.
+3.  Type make -f Makefile.(appropriate os here) olsrgui to build the gui.
+4.  The resulting olsrgui binary will interface with nrlolsrd when both are 
+    running.
+
+See readme.help in base nrlolsr directory for operating instructions.

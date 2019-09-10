@@ -1,0 +1,12 @@
+Version: 3
+Position_Unit: Degrees
+Altitude_Unit: Meters
+Coordinate_Method: relative
+Altitude_Method: absolute
+locale: C
+Calendar_Start: unused
+Coordinate_Count: 3
+# X Position        ,Y Position          ,Altitude            ,Traverse Time       ,Wait Time           ,Pitch               ,Yaw                 ,Roll                
+0                   ,0                   ,0                   ,0h0m0.0s            ,0h0m0.0s            ,Autocomputed        ,Autocomputed        ,Unspecified         
+0.00739099          ,0.00595292          ,0.1                 ,0h1m32.12s          ,0h0m0.0s            ,Autocomputed        ,Autocomputed        ,Unspecified         
+0.00735754          ,0.00595292          ,0.1                 ,0h0m2.89s           ,0h0m0.0s            ,Autocomputed        ,Autocomputed        ,Unspecified         

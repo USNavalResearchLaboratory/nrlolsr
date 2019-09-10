@@ -1,0 +1,131 @@
+Microsoft eMbedded Visual Tools Workspace File, Format Version 4.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "Protokit"="..\protolib\wince\Protokit.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "gl"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_gl.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "mono"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_mono.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "nrlolsrd"=".\nrlolsrd.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name Protokit
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "olsrgui"=".\olsrgui\olsrgui.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name Protokit
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "wxexpat"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_wxexpat.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "wxjpeg"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_wxjpeg.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "wxpng"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_wxpng.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "wxzlib"="..\..\..\..\..\wxWidgets-2.6.1\build\wince\wx_wxzlib.vcp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

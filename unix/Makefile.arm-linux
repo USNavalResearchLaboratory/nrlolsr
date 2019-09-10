@@ -1,0 +1,98 @@
+#
+# Linux/ARM Makefile definitions
+#
+#
+# Used to successfully build the olsrd code using arm-linux-gcc v2.95.2
+# cross compiler for the x86.
+# The target was the Sharp Zaurus SL5500 running OpenZaurus and
+# Linux kernel 2.4.6-rmk1-np2-embedix.
+# contributed by Delft University of Technology, The Netherlands;
+# Johan Pouwelse (j.a.pouwelse@its.tudelft.nl)
+# 4 June 2003
+#
+# Thanks Johan (justin)
+
+# TO BUILD THE TK GUI VERSION OF MDP EDIT THE FOLLOWING NUMBERED 
+# ITEMS AS NEEDED FOR YOUR SYSTEM
+# (This has only been tested with TCL/TK 8.0 but it probably
+#  will work with Tcl7.x/Tk4.x with a little tweaking to
+#  the list of TCL_SCRIPTS (library scripts) given below)
+
+# 1) Where to find the Tcl standard library scripts
+#    (e.g. init.tcl, ...)
+#TCL_SCRIPT_PATH = /usr/lib/tcl
+
+# 2) Where to find the Tk standard library scripts
+#    (e.g. button.tcl, entry.tcl, ...)
+#TK_SCRIPT_PATH = /usr/lib/tk
+
+# 3) Where to find Tcl/Tk header files
+#    (e.g. tcl.h, tk.h, ...)
+#TCL_INCL_PATH = -I/usr/local/include
+
+# 4) Point to specific libtcl.a and libtk.a to use
+#TCL_LIB = -ltcl #/usr/local/lib/libtcl8.0.a
+#TK_LIB = -ltk #/usr/local/lib/libtk8.0.a
+
+
+# 5) System specific additional libraries, include paths, etc
+#    (Where to find X11 libraries, etc)
+#
+#SYSTEM_INCLUDES = -I/usr/X11R6/include 
+#SYSTEM_LDFLAGS = -L/usr/X11R6/lib 
+SYSTEM_LIBS = -ldl -lpthread 
+
+# 6) System specific capabilities
+# Must choose appropriate for the following:
+#
+# A) -DHAVE_CUSERID (preferred) or -DHAVE_GETLOGIN for cuserid() or getlogin()
+#     functions to obtain user's login name (We may change this to getpwd() 
+#     if that is better across different platforms and login environments)
+#
+# B) -DHAVE_LOCKF (preferred) or -DHAVE_FLOCK for lockf() or flock() file locking
+#     functions to attempt exclusive lock on writing to files
+# 
+# C) Specify -DHAVE_DIRFD if your system provides the "dirfd()" function
+#    (Most don't have it defined ... but some do)
+#
+# D) Optionally specify -DHAVE_ASSERT if your system has a built-in ASSERT()
+#    routine.
+#
+# E) The MDP code's use of offset pointers requires special treatment
+#    for some different compilers. Set -DUSE_INHERITANCE for some
+#    to keep some compilers (gcc 2.7.2) happy.
+#
+# F) Some systems (SOLARIS/SUNOS) have a few gotchas which require
+#    some #ifdefs to avoid compiler warnings ... so you might need
+#    to specify -DSOLARIS or -DSUNOS depending on your OS.
+#
+# G) Uncomment this if you have the NRL IPv6+IPsec software
+#DNETSEC = -DNETSEC -I/usr/inet6/include
+#
+# (We export these for other Makefiles as needed)
+#
+
+#Added -DARM to the system_haves for the cross compiler
+
+#add -DHAVE_IPV6 if you have ipv6 support
+export SYSTEM_HAVES = -DARM -DLINUX -DHAVE_GETLOGIN -DHAVE_LOCKF \
+-DHAVE_OLD_SIGNALHANDLER -DHAVE_DIRFD -DHAVE_ASSERT $(NETSEC)
+
+#Change vars for ARM cross-compile
+export CC = arm-linux-g++
+export RANLIB = arm-linux-ranlib
+export AR = arm-linux-ar
+
+#added for completeness
+export AS = arm-linux-as
+export LD = arm-linux-ld
+export NM = arm-linux-nm
+export STRIP = arm-linux-strip
+export OBJCOPY = arm-linux-objcopy
+export OBJDUMP = arm-linux-objdump
+
+#Added linux/arm code
+SYSTEM_SRC = ../protolib/unix/linuxRouteMgr.cpp
+
+SYSTEM = arm-linux
+include Makefile.common

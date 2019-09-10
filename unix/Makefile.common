@@ -1,0 +1,67 @@
+#########################################################################
+# COMMON OLSR MAKEFILE STUFF
+#
+
+SHELL=/bin/sh
+
+.SUFFIXES: .cpp $(.SUFFIXES)
+
+PROTOLIB = ../protolib
+COMMON = ../common
+UNIX = ../unix
+NS = ../ns
+
+INCLUDES = $(TCL_INCL_PATH) $(SYSTEM_INCLUDES) $(WX_INCLUDES) -I$(UNIX) -I$(COMMON) -I$(PROTOLIB)/common
+
+CFLAGS = -g -DPROTO_DEBUG -DUNIX -Wall -O -fPIC $(SYSTEM_HAVES) $(INCLUDES)
+
+WXCFLAGS = -g -DPROTO_DEBUG -DUNIX -Wall -O -fPIC $(WX_FLAGS) $(SYSTEM_HAVES) $(INCLUDES)
+
+LDFLAGS = $(SYSTEM_LDFLAGS)
+
+LIBS = $(SYSTEM_LIBS) -lm
+
+TARGETS = nrlolsrd
+
+# Rule for C++ .cpp extension
+.cpp.o:
+	$(CC) -c $(CFLAGS) -o $*.o $*.cpp
+
+all: nrlolsrd
+
+# NRLOLSRD depends upon the NRL Protean Group's development library
+LIBPROTO = $(PROTOLIB)/unix/libProtokit.a
+$(PROTOLIB)/unix/libProtokit.a:
+	cd $(PROTOLIB)/unix; make -f Makefile.$(SYSTEM) libProtokit.a
+
+OLSR_SRC = $(COMMON)/nrlolsr.cpp $(COMMON)/olsr_packet_types.cpp \
+           $(COMMON)/nbr_queue.cpp $(COMMON)/mprselPub.cpp \
+           $(COMMON)/nrlolsrApp.cpp $(SYSTEM_SRC)
+OLSR_OBJ = $(OLSR_SRC:.cpp=.o)
+
+nrlolsrd:    $(LIBPROTO) $(OLSR_OBJ)
+	$(CC) -g $(CFLAGS) -o $@ $(OLSR_OBJ) $(LDFLAGS) $(LIBS) $(LIBPROTO) -l pcap
+
+MNM_SRC = $(COMMON)/mnmMacMsg.cpp $(COMMON)/mnmExample.cpp
+MNM_OBJ = $(MNM_SRC:.cpp=.o)
+
+mnmExample:    $(LIBPROTO) $(MNM_OBJ)
+	$(CC) -g $(CFLAGS) -o $@ $(MNM_OBJ) $(LDFLAGS) $(LIBS) $(LIBPROTO)
+
+# Re-define rule for C++ .cpp extension
+.cpp.o:
+	$(CC) -c $(WXCFLAGS) -o $*.o $*.cpp
+    
+NRLOLSRGUI_SRC = $(COMMON)/nrlolsrgui.cpp $(PROTOLIB)/wx/wxProtoApp.cpp
+NRLOLSRGUI_OBJ = $(NRLOLSRGUI_SRC:.cpp=.o)
+
+olsrgui:	$(NRLOLSRGUI_OBJ) $(LIBPROTO)
+	$(CC) -g $(WXCFLAGS) -o $@ $(NRLOLSRGUI_OBJ) $(LIBPROTO) $(LDFLAGS) $(WX_FLAGS) $(LIBS) $(WX_LIBS)
+
+clean:	
+	rm -f *.o $(COMMON)/*.o $(NS)/*.o nrlolsrd olsrgui
+	make -C $(PROTOLIB)/unix -f Makefile.common clean
+
+# DO NOT DELETE THIS LINE -- mkdep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+

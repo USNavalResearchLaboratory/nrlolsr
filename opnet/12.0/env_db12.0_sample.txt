@@ -1,0 +1,555 @@
+# OPNET Environment file
+# Created automatically on 10:24:15 Wed Sep 06 2006 for program modeler.
+
+_locale             : "C"
+
+ace_application_capture_console_location: apocalypse
+
+ace_application_capture_promisc_warn: FALSE
+
+ace_external_decoder_dont_decode_above_http_list: daap*
+
+ace_import_auto_preprocess_file_extension_list: .cap
+
+ace_preprocessor_progs: op_external_decoder_to_appcapture,
+                      op_proconvert_to_enc,
+                      op_proconvert_to_trc
+
+ace_trace_file_dir  : "C:\\Documents and Settings\\Jim Hauser"
+
+bind_shobj_flags    : "/DEBUG  /LIBPATH:C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\pc_intel_win32\\lib C:\\PROGRA~1\\MICROS~1.NET\\Vc7\\PLATFO~1\\lib\\WSock32.Lib C:\\PROGRA~1\\MICROS~1.NET\\Vc7\\PLATFO~1\\lib\\WS2_32.Lib"
+
+bind_shobj_flags_devel: "/DEBUG "
+
+bind_static_flags   : "/Zi /LINK /link /LARGEADDRESSAWARE /LIBPATH:C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\pc_intel_win32\\lib C:\\PROGRA~1\\MICROS~1.NET\\Vc7\\PLATFO~1\\lib\\WSock32.Lib"
+
+bind_static_flags_devel: /Zi
+
+browser_prog        : "C:\\PROGRA~1\\MOZILL~2\\FIREFOX.EXE -url"
+
+comp_flags_c++_specific: "/Zi /DWIN32 /D_DEBUG  /DSIMULATE /DOPNET /DPROTO_DEBUG /DHAVE_ASSERT /D_WINDOWS /DOPNET_OLSR /DSMF_SUPPORT /DHAVE_GPS -IC:\\op_models\\nrl\\mdp\\common -IC:\\op_models\\nrl\\mdp\\opnet\\12.0 -IC:\\op_models\\nrl\\mdp\\win32 -IC:\\op_models\\nrl\\norm\\common -IC:\\op_models\\nrl\\norm\\opnet\\12.0"
+
+comp_flags_common   : "/W3 -IC:\\op_models\\nrl\\nrlolsr\\common -IC:\\op_models\\nrl\\nrlolsr\\opnet\\12.0 -IC:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\include -IC:\\op_models\\nrl\\protolib\\common -IC:\\op_models\\nrl\\protolib\\opnet\\12.0 -IC:\\op_models\\nrl\\smf\\common -IC:\\op_models\\nrl\\smf\\opnet\\12.0 -IC:\\op_models\\nrl\\mgen\\common -IC:\\op_models\\nrl\\mgen\\opnet\\12.0"
+
+comp_flags_devel    : /Zi
+
+des.configuration_mode: detailed
+
+des.confirm_advanced_mode: TRUE
+
+des.confirm_detailed_mode: TRUE
+
+device_import.backup_imported_files: TRUE
+
+device_import.copy_newly_assigned_configlet: FALSE
+
+device_import.create_ebgp_node: FALSE
+
+device_import.create_edge_lans: FALSE
+
+device_import.create_pvc: TRUE
+
+device_import.create_serial_cloud: PARTIAL
+
+device_import.default_assist_files: ""
+
+device_import.duplicate_scenario_before_import: FALSE
+
+device_import.ia_atm_default_data_rate: 1.48608e+008
+
+device_import.ia_serial_default_data_rate: 1.544e+006
+
+device_import.import_voip_configuration: TRUE
+
+device_import.layer3_only_import: FALSE
+
+device_import.log_skipped_show: FALSE
+
+device_import.logging: FALSE
+
+device_import.parse_ip_route: TRUE
+
+device_import.show_complete_configlet_path: FALSE
+
+device_import.show_import_summary: TRUE
+
+device_import.skip_partial_devices: FALSE
+
+device_import.tunnel_cloud_import: TRUE
+
+device_import.use_bandwidth_for_datarate: TRUE
+
+device_import.use_model_assistant: TRUE
+
+device_import.use_vrf_interface_for_link_inference: TRUE
+
+flow_analysis_network_mode: Packet-Switched
+
+ip_flow_analysis_mapping_debug_dir: ""
+
+ip_flow_analysis_random_seed_to_order_lsps: 0
+
+ip_flow_analysis_suppress_intervals_warning: FALSE
+
+ip_flow_analysis_suppress_max_routes_limit_warning: FALSE
+
+ip_flow_analysis_temp_dir: "C:\\DOCUME~1\\JIMHAU~1\\LOCALS~1\\Temp"
+
+ip_flow_analysis_ui_route_color1: "#FFFF00"
+
+ip_flow_analysis_ui_route_color2: "#FF00FF"
+
+ip_flow_analysis_ui_route_color3: "#AAFFAA"
+
+ip_flow_analysis_ui_route_color4: "#0000FF"
+
+ip_flow_analysis_ui_route_color5: "#FF8000"
+
+ip_flow_analysis_ui_route_color6: "#AAFFFF"
+
+ip_flow_analysis_ui_route_color7: "#5555FF"
+
+ip_flow_analysis_ui_route_color8: "#FFAAAA"
+
+ip_flow_analysis_ui_route_line_thickness: 5
+
+ip_flow_analysis_ui_route_line_type: Solid
+
+ip_flow_analysis_ui_route_max_num: 1000
+
+last_processed_model_library_version: "12.0 (22-Aug-2006)"
+
+license_port        : ""
+
+license_server      : apocalypse
+
+mod_dirs            : "C:\\op_models\\nrl\\mgen\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\mgen\\common",
+                      "C:\\op_models\\nrl\\norm\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\norm\\common",
+                      "C:\\op_models\\nrl\\mdp\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\mdp\\common",
+                      "C:\\op_models\\nrl\\mdp\\win32",
+                      "C:\\op_models\\nrl\\smf\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\smf\\common",
+                      "C:\\op_models\\nrl\\nrlolsr\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\nrlolsr\\common",
+                      "C:\\op_models\\nrl\\protolib\\opnet\\12.0",
+                      "C:\\op_models\\nrl\\protolib\\common",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\lib",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\icons",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\images",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\include",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\images\\maps",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\configs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\help",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities\\3dnv",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities\\tmm",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities\\hla",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities\\sitl",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\utilities\\netcop",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\sys\\reports\\stylesheets",
+                      "C:\\Documents and Settings\\Jim Hauser\\op_admin\\ace_logs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\3dnv_examples",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\applications",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\atm",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\atv",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\base",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\bgp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\bridges",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\circuit_switch",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\demands",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\dhcp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\docsis",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\eigrp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\ethcoax",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\ethernet",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\baseline",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\baseline_no_unnum_links",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\with_areas_bad_abr",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\with_areas_broken",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\with_areas_good_abr",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\configs\\with_areas_good_summ",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\parallel_simulations",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\Security_Analysis",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\Security_Analysis\\Baseline",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\traffic",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\traffic\\one_time_period",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\traffic\\time_varying",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\example_networks\\web_reports",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\fc",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\fddi",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\frelay",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\haipe",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\icons",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\igrp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\include",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\inet",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\ip",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\ip\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\isis",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\jammers",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\lane",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\lapb",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\legacy",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\links",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\llm",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mainframe",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mainframe\\Excel",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mainframe\\SAS",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mainframe\\SAS\\MXG",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\manet",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mobile_ip",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\mpls",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\ospf",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\pnni",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\pricing",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\pricing\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\rip",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\rrp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\rsvp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\rtp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\BMC",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\BMC\\nt",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\BMC\\unix",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\NetIQ",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\NetIQ\\4.0",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\NetIQ\\5.0",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\OpenView",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\OpenView\\nt",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\OpenView\\unix",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\Perfmon",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\SystemEDGE",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\SystemEDGE\\nt",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\SystemEDGE\\unix",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\servers\\agents\\TeamQuest",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\sip",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\sna",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\srp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tcp",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tpal",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tr",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\traf_gen",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\basic",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\basic\\traffic",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\modeler",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\3dnv",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\configs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\configs\\baseline",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\configs\\with_areas_broken",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\hla",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\MVI_NetDoctor_configs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\MVI_NetDoctor_configs\\DataSet1_Layer3Only",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\MVI_NetDoctor_configs\\DataSet2_ConfigOnly",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\MVI_NetDoctor_configs\\DataSet3_MissingVLANInformation",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\MVI_NetDoctor_configs\\DataSet4_Complete",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\module\\traffic",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\sentinel",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\tutorial_req\\sentinel\\quickstart_configs",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\umts",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\design",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\design\\base",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\design\\mpls",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\design\\mpls_te",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\design\\topo",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\device_creator",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\device_creator\\generic",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\device_creator\\vendor",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\flowan",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\flowan\\capplan",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\flowan\\failure_impact_analysis",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\flowan\\voip",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\groups",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\import",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\import\\imex_dste",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\import\\rci",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\import\\vnes",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\netdiff",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\netdiff\\config_file_diff_css",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\netdoctor",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\netdoctor\\en_US",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\oms",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\packet_analyzer",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\udr",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\views",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\utilities\\vni",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\web_reports",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\wireless",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\wireless\\smac",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\wireless_lan",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\x25",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\std\\xdsl",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\3Com",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\ADC",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Alteon",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\AMD",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\antenna_models",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Ascend",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Avici",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Bay_Networks",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Brocade",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Cabletron",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\CheckPoint",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Cisco_Systems",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Compaq",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Coyote_Point",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Dell",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Equipe",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Extreme",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\f5",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Fore_Systems",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Foundry_Networks",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Hewlett_Packard",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\IBM",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Intel",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Juniper_Networks",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Lucent",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\McData",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Motorola",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Nec",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\NET",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Newbridge",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Nokia",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Nortel",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Radware",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Sun",
+                      "C:\\PROGRA~1\\OPNET\\12.0.A\\models\\vendor_models\\Xylan"
+
+model_assistant_adjust_view_after_apply: FALSE
+
+model_assistant_configuration_file: ma_config.gdf
+
+model_assistant_load_file_default: ""
+
+model_assistant_save_file_default: ""
+
+net_report_link_detail_attrs: tooltip,
+                      "financial cost"
+
+net_report_link_summary_attrs: tooltip,
+                      "financial cost"
+
+net_report_node_detail_attrs: tooltip,
+                      "financial cost"
+
+net_report_node_summary_attrs: tooltip,
+                      "financial cost"
+
+netcop.tooltip.link_attributes: tooltip,
+                      name,
+                      Bandwidth,
+                      Type,
+                      Utilization,
+                      "Utilization (A->B)",
+                      "Utilization (B->A)",
+                      "Throughput (A->B)",
+                      "Throughput (B->A)"
+
+netdiff.exec_summary_function: make_exec_summary
+
+netdiff.exec_summary_module: NetDiff_Exec_Summary
+
+netdiff.include_debug_log_entries: FALSE
+
+netdiff.keep_prior_analysis_log_count: 5
+
+netdoctor.collect_trending_data: FALSE
+
+netdoctor.config_errlog_incident_limit: 100
+
+netdoctor.consider_shutdown: FALSE
+
+netdoctor.consider_unattached: FALSE
+
+netdoctor.dynamic_data_source: "Operational Network"
+
+netdoctor.enable_filter_cache: TRUE
+
+netdoctor.epilogue_function: ""
+
+netdoctor.epilogue_python_module: ""
+
+netdoctor.error_bg_color: "#CEBBC8"
+
+netdoctor.error_fg_color: "#000000"
+
+netdoctor.html_report_logo: <Default>
+
+netdoctor.include_debug_log_entries: FALSE
+
+netdoctor.keep_prior_analysis_log_count: 5
+
+netdoctor.keep_prior_reports_count: 5
+
+netdoctor.no_longer_detected_bg_color: "#E6E6E6"
+
+netdoctor.no_longer_detected_fg_color: "#000000"
+
+netdoctor.note_bg_color: "#CFD5DE"
+
+netdoctor.note_fg_color: "#000000"
+
+netdoctor.notice_message: ""
+
+netdoctor.passed_bg_color: "#BED2C3"
+
+netdoctor.passed_fg_color: "#000000"
+
+netdoctor.print_all_exceptions: FALSE
+
+netdoctor.profile_handlers: FALSE
+
+netdoctor.report_language: en_US
+
+netdoctor.report_max_msgs: 100000
+
+netdoctor.rtf_cover_report_logo: <Default>
+
+netdoctor.rtf_head_report_logo: <Default>
+
+netdoctor.rule_max_msgs: 20000
+
+netdoctor.trending_slope_threshold: 0.2
+
+netdoctor.trending_slope_units: auto
+
+netdoctor.user5_bg_color: "#D1B8E9"
+
+netdoctor.user5_fg_color: "#000000"
+
+netdoctor.user6_bg_color: "#D4D495"
+
+netdoctor.user6_fg_color: "#000000"
+
+netdoctor.user7_bg_color: "#ECC6B0"
+
+netdoctor.user7_fg_color: "#000000"
+
+netdoctor.user8_bg_color: "#C6DE99"
+
+netdoctor.user8_fg_color: "#000000"
+
+netdoctor.warning_bg_color: "#EEDEAD"
+
+netdoctor.warning_fg_color: "#000000"
+
+network_configuration.display_network_information_interactively: FALSE
+
+network_palette     : custom_model_list,
+                      internet_toolbox
+
+obj_dbox_headers    : "'Type:', '', , selfdesc:'machine type'",
+                      "'Make:', '', , selfdesc:'System Object ID'|selfdesc:'vendor'"
+
+opnet_dir           : "C:\\PROGRA~1\\OPNET"
+
+product             : modeler
+
+product_options     : wireless
+
+reports_dir         : "C:\\Documents and Settings\\Jim Hauser\\op_reports"
+
+security.crypto.master_iv: 0iKsmEWyv+AafSuf/vSlHg==
+
+security.crypto.master_key: EN0h+joeyPJlPiu1uj0nyonytC0RXsM6Wfjqz6zUx8Ey45Lwi/reI8RKoxN9EQoa
+
+security.crypto.password_iv: v+ji8+MwqRvopzt4MDwz3A==
+
+spreadsheet_prog    : "C:\\PROGRA~1\\MICROS~2\\Office10\\EXCEL.EXE"
+
+tmm_data_directory  : ""
+
+tmm_data_type       : "USGS DEM"
+
+tool_open_save_behavior: never_browse
+
+tooltip.demand_attributes: model,
+                      name
+
+tooltip.link_attributes: tooltip,
+                      name,
+                      "transmitter a",
+                      "transmitter b",
+                      transmitter,
+                      receiver,
+                      "data rate"
+
+tooltip.path_attributes: tooltip,
+                      name
+
+tooltip.site_attributes: tooltip,
+                      name
+
+traffic_archive_dir : "C:\\Documents and Settings\\Jim Hauser\\op_models"
+
+traffic_center.arrange_percentile_list: 1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      7,
+                      10,
+                      15,
+                      20,
+                      30,
+                      50,
+                      75,
+                      90,
+                      95
+
+traffic_center.domain_display_threshold: 1000
+
+traffic_center.graph_rollup_enabled: TRUE
+
+traffic_center.top_n_ports: 10
+
+traffic_center.top_n_talkers: 10
+
+traffic_profile_undef_value_treat_as_zero: FALSE
+
+vne_import.create_ebgp_node: FALSE
+
+vne_import.create_edge_lan: FALSE
+
+vne_import.create_serial_cloud: PARTIAL
+
+vne_import.debug    : FALSE
+
+vne_import.default_assist_files: ""
+
+vne_import.group_nodes_into_subnets: TRUE
+
+vne_import.import_attributes: TRUE
+
+vne_import.import_configurations: TRUE
+
+vne_import.import_links: TRUE
+
+vne_import.import_partially_mapped_flows: FALSE
+
+vne_import.import_unmapped_flows: FALSE
+
+vne_import.import_voip_configuration: TRUE
+
+vne_import.live_update_server_port: 3100
+
+vne_import.logging  : FALSE
+
+vne_import.skip_atm_fr_pvc: FALSE
+
+vne_import.tunnel_cloud_import: TRUE
+
+vne_import.use_model_assistant: TRUE
+
+vudoc_prog          : "C:\\Program Files\\Adobe\\Acrobat 7.0\\Reader\\AcroRd32.exe"
+
+word_processing_prog: "C:\\Program Files\\Microsoft Office\\Office10\\WINWORD.EXE"
+

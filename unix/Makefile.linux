@@ -1,0 +1,34 @@
+#
+# Linux Protean Makefile definitions
+#
+
+
+
+# 1) System specific additional libraries, include paths, etc
+#    (Where to find X11 libraries, etc)
+#
+SYSTEM_INCLUDES = -I/usr/X11R6/include 
+SYSTEM_LDFLAGS = -L/usr/X11R6/lib 
+SYSTEM_LIBS = -ldl -lpthread 
+
+# 1.2) (Where to find wxWindows files)
+WX_FLAGS = `/usr/local/bin/wx-config --cxxflags`
+WX_LIBS = `/usr/local/bin/wx-config --libs`
+
+#
+# 2) System specific capabilities
+# 
+
+SYSTEM_HAVES = -DLINUX -DSMF_SUPPORT -DHAVE_IPV6 -DHAVE_GETLOGIN -DHAVE_LOCKF \
+-DHAVE_OLD_SIGNALHANDLER -DHAVE_DIRFD -DHAVE_ASSERT $(NETSEC)
+
+CC = g++
+RANLIB = ranlib
+AR = ar
+
+SYSTEM = linux
+
+#SYSTEM_SRC = ../protolib/common/pcapCap.cpp
+SYSTEM_SRC = ../protolib/unix/linuxCap.cpp
+
+include Makefile.common

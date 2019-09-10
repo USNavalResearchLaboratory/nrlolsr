@@ -89,6 +89,7 @@ class Nrlolsr
   bool SetOlsrHNAOff(bool off);
   bool SetOlsrHNAFile(const char* filename);
   bool SetOlsrQos(const char* qosvalue);
+  bool SetOlsrTtl(const char* setTtlValue);
   bool SetOlsrFuzzyFlooding(bool fuzzyfloodingon); 
   bool SetOlsrRouteTable(ProtoRouteMgr *theRouteMgr);
 
@@ -217,7 +218,8 @@ protected:
   unsigned int          hostMaskLength;
 
   unsigned int          qosvalue;
-
+  unsigned int          ttlvalue;
+  
   //do nonstandard route calculations based upon link metrics
   bool           dotcextra;  //set to true for non-standard operation
   bool           dospf;
@@ -328,6 +330,7 @@ private:
   ProtoPipe     smf_pipe;              // pipe to smfClient
   ProtoPipe     gui_pipe;              // pipe to gui interface
   ProtoPipe     sdt_pipe;              // pipe to sdt interface
+  ProtoPipe     console_pipe;          // pipe to console interface
 #endif //SIMULATE
   ProtoTimer hello_timer;
   ProtoTimer hello_jitter_timer;
@@ -349,11 +352,19 @@ private:
   //deprecated use updateSmfForwardingInfo instead;
   //bool              updateSendMacMprInfo; // set to true if mprselector list is changed
 #endif // SMF_SUPPORT
+  void SendConsoleRoutes(); //sends routing info to the console pipe
+  void SendConsoleGraphML(); //not currently supported
+  void SendConsoleNeighbors(); //sends neighbor info to the console pipe
+  void SendConsoleRouterID(); //sends myaddress to the console pipe
+  
   void SendGuiRoutes(); //sends routing info to the gui pipe
   void SendGuiNeighbors(); //sends neighbor info to the gui pipe
   void SendGuiSettings(); //sends the setting info to the gui pipe
 
   void SendSDTInfo();
+  void UpdateSDTLinks();
+  
+  
   void SendForwardingInfo(); //generic function which sends forwarding info dependant on which forwarding mode olsris in
   bool updateSmfForwardingInfo; //set to true if the forwarding information needs to be changed
   bool floodingOn;//set to true when flooding command is used

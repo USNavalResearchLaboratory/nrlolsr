@@ -3,7 +3,7 @@
 #ifndef SIMULATE //real world code requires more things which all of which are not included in protolib simulation code
 Nrlolsr::Nrlolsr(ProtoDispatcher& theDispatcher, ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
  : socket(ProtoSocket::UDP), mac_control_socket(ProtoSocket::UDP),
-   recvPipe(ProtoPipe::MESSAGE) , smf_pipe(ProtoPipe::MESSAGE) , gui_pipe(ProtoPipe::MESSAGE) , sdt_pipe(ProtoPipe::MESSAGE)
+   recvPipe(ProtoPipe::MESSAGE) , smf_pipe(ProtoPipe::MESSAGE) , gui_pipe(ProtoPipe::MESSAGE) , sdt_pipe(ProtoPipe::MESSAGE), console_pipe(ProtoPipe::MESSAGE)
 #ifdef SMF_SUPPORT
    , cap_rcvr(NULL)
 #endif // SMF_SUPPORT
@@ -44,6 +44,7 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
 
   Neighb_Hold_Time = 6.0; //is default value changed on Start();
   qosvalue=0;
+  ttlvalue=1;
   userDefBroadcast = false;
 
   ipvMode = ProtoAddress::IPv4;
@@ -112,8 +113,11 @@ Nrlolsr::Nrlolsr(ProtoSocket::Notifier& theNotifier, ProtoTimerMgr& theTimer)
   mssn = 0;
 
   //init default debug values
-  olsrDebugValue = 0;
-  SetDebugLevel(olsrDebugValue);
+  // Adamson change - we pick up the "default" from Protolib.
+  // This keeps nrlolsr from "stepping on" any value that might be set
+  // by other "agents" in ns-2 simulations (or other similar code uses)
+  olsrDebugValue = GetDebugLevel();
+  //SetDebugLevel(olsrDebugValue);
 
   //create a routing table
   //realRouteTable=ProtoRouteMgr::Create(); // this is now passed to us via SetOlsrRouteTable
@@ -161,12 +165,22 @@ Nrlolsr::SetOlsrInterfaceAddress(const char* name){
   //DMSG(6,"Enter: Nrlolsr::SetInterfaceAddress(name %s)\n", name);
   strncpy(interfaceName,name,256);
   if(realRouteTable){
-    interfaceIndex = realRouteTable->GetInterfaceIndex(interfaceName);
-	if(!realRouteTable->GetInterfaceName(interfaceIndex,interfaceName,256)){
-		DMSG(0,"Nrlolsr::SetOlsrInterfaceAddress: Error finding interfaceName from index %d\n",interfaceIndex);
-		return false;
-	}
-    return interfaceIndex > 0; 
+      int tries = 0;
+      int maxtries = 10;
+      while(tries++<maxtries){
+          interfaceIndex = realRouteTable->GetInterfaceIndex(interfaceName);
+  	  if(!realRouteTable->GetInterfaceName(interfaceIndex,interfaceName,256)){
+              if(tries>=maxtries){
+	          DMSG(0,"Nrlolsr::SetOlsrInterfaceAddress: Error finding interfaceName from index %d\n",interfaceIndex);
+	          return false;
+              } else {
+                  sleep(1);
+              }
+	  } else {
+              tries=maxtries+1;
+          }
+      }
+      return interfaceIndex > 0; 
   }
   DMSG(0,"Nrlolsr::SetInterfaceAddress Error SetOlsrRouteTable must be called before this function!\n");
   return false;
@@ -641,6 +655,18 @@ Nrlolsr::SetOlsrQos(const char* setQosValue){
   return true;
 }
 bool
+Nrlolsr::SetOlsrTtl(const char* setTtlValue){
+    DMSG(6,"%s\n",setTtlValue);
+    DMSG(6,"Enter: Nrlolsr::SetOlsrTtl setTtlValue %s)\n",setTtlValue);
+    if(atoi(setTtlValue) > 255 || atoi(setTtlValue) == 0)
+    {
+        return false;
+    }
+    ttlvalue = atoi(setTtlValue);
+    //DMSG(6,"Exit: Nrlolsr::SetTtlValue(setTtlValue %s)\n",setTtlValue);
+    return true;
+}
+bool
 Nrlolsr::SetOlsrRouteTable(ProtoRouteMgr *theRouteMgr){
   if(theRouteMgr!=NULL){
     realRouteTable = theRouteMgr;
@@ -820,11 +846,13 @@ Nrlolsr::Start()
 	  DMSG(0, "Nrloslr::Start(): smf_pipe.Connect(nrlsmf) Not connected.\n");
 	}
     }
-    if (SDTOn && (!sdt_pipe.IsOpen()))
+    if (!sdt_pipe.IsOpen())
     {
         // Try and connect to the smf pipe "sdt" by default
         if(sdt_pipe.Connect("sdt"))
         {
+            SDTOn=true;
+            SendSDTInfo();
             //send any initial state here    
         } 
         else
@@ -933,6 +961,7 @@ Nrlolsr::discoverAndSetHNAs(char* ignoreDev){ // function onwly works with ipv4 
   //DMSG(6,"Enter: Nrlolsr::discoverAndSetHNAs(ignoreDev %s)\n",ignoreDev);
   bool returnvalue = false;
 #ifdef UNIX
+#ifndef ANDROID
 #ifndef SIMULATE
   if(ipvMode==ProtoAddress::IPv4){ //ipv6 does not yet have auto setup for hna use the file option to set the hna for v6
     char *trashCharPtr = NULL;
@@ -968,6 +997,7 @@ Nrlolsr::discoverAndSetHNAs(char* ignoreDev){ // function onwly works with ipv4 
     returnvalue = false;
   }
 #endif//ifndef SIMULATE
+#endif//ifndef ANDROID
 #endif//ifdef UNIX
   //DMSG(6,"Exit: Nrlolsr::discoverAndSetHNAs(ignoreDev %s)\n",ignoreDev);
   return returnvalue;
@@ -1094,6 +1124,7 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       if(sdt_pipe.IsOpen()) sdt_pipe.Close();
       if(sdt_pipe.Connect(argv[i])) {
         SDTOn = true;
+        SendSDTInfo();
       } else {
         DMSG(0,"Nrlolsr::ProcessCommands(): sdt_pipe.Connect() error can't connect to %s\n",argv[i]);
       }
@@ -1140,7 +1171,58 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
       } else {
 	DMSG(0,"Nrlolsr::ProcessCommands(): Cannont send gui settings information as gui_pipe is not open!\n");
       }
-    } else if(!strcmp(argv[i],"-rpipe")) { //set recvPipeName and open pipe to receive commands
+    } 
+    
+    else if(!strcmp(argv[i], "-nrlConsole")) { //set up console sendPipeName and open console_pipe (used to update the console)
+      i++;
+      if(console_pipe.IsOpen()) console_pipe.Close();
+      if(console_pipe.Connect(argv[i])) {
+	char cmdstr[256];
+	memset(cmdstr,0,256);
+	unsigned int cmdlen =0;
+	strcpy(cmdstr,"consoleServerStart ");
+	strcat(cmdstr,recvPipeName);
+	cmdlen=strlen(cmdstr);
+	if (!console_pipe.Send(cmdstr, cmdlen)) {
+	  DMSG(0, "Nrlolsr::ProcessCommands(): console_pipe.Send() error\n");
+	}
+      }	else {
+	DMSG(0,"Nrlolsr::ProcessCommands(): Error connecting to console_pipe of name %s\n",argv[i]);
+	printusage = true;
+      }
+    } else if(!strcmp(argv[i],"consoleClientStart")) { // respond by connecting to indicated pipe
+      i++;
+      if(console_pipe.IsOpen()) console_pipe.Close();
+      if(!console_pipe.Connect(argv[i])){
+	DMSG(0,"Nrlolsr::ProcessCommands(): Error connecting to console_pipe of name %s\n",argv[i]);
+	printusage = true;
+      }
+    } else if(!strcmp(argv[i], "-sendConsoleRoutes")) { 
+      if(console_pipe.IsOpen()){
+	SendConsoleRoutes();
+      } else {
+	DMSG(0,"Nrlolsr::ProcessCommands(): Cannont send console route information as console_pipe is not open!\n");
+      }
+    } else if(!strcmp(argv[i], "-sendConsoleGraphML")){
+      if(console_pipe.IsOpen()){
+	SendConsoleGraphML();
+      } else {
+	DMSG(0,"Nrlolsr::ProcessCommands(): Cannont send console graph information as console_pipe is not open!\n");
+      }
+    } else if(!strcmp(argv[i], "-sendConsoleNeighbors")){
+      if(console_pipe.IsOpen()){
+	SendConsoleNeighbors();
+      } else {
+	DMSG(0,"Nrlolsr::ProcessCommands(): Cannont send console neighbor information as console_pipe is not open!\n");
+      }
+    } else if(!strcmp(argv[i], "-sendConsoleRouterID")) { //used for getting the active interface olsr is running on.
+        if(console_pipe.IsOpen()){
+            SendConsoleRouterID();
+        } else {
+            DMSG(0,"Nrlolsr::ProcessCommands(): Cannot send console routerid information as console_pipe is not open!\n");
+        }
+    }
+    else if(!strcmp(argv[i],"-rpipe")) { //set recvPipeName and open pipe to receive commands
       i++;
       strncpy(recvPipeName, argv[i], 256);
       if(recvPipe.IsOpen()) recvPipe.Close();
@@ -1159,6 +1241,18 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	    DMSG(0, "Nrloslr::ProcessCommands(): gui_pipe.Send() error\n");
 	  }
 	} 
+	if(console_pipe.IsOpen()) {
+	  char cmd[256];
+	  //cmd[255] = '\0';
+	  memset((void*)cmd,0,255);
+	  strcpy(cmd,"consoleServerStart ");
+	  strncat(cmd,recvPipeName,255 - strlen(cmd));
+	  unsigned int len = strlen(cmd);
+	  if (!gui_pipe.Send(cmd, len)) {
+	    DMSG(0, "Nrloslr::ProcessCommands(): console_pipe.Send() error\n");
+	  }
+	} 
+
       }
 #ifndef SMF_SUPPORT
     }
@@ -1194,13 +1288,13 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	    }
 	  else
 	    {
-	      DMSG(0, "Nrlolsr::ProcessCommands(): smf_pipe.Send() error\n");
+	      DMSG(1, "Nrlolsr::ProcessCommands(): smf_pipe.Send():Warning error sending forwarding info\n");
 	    }
 	}
       else
 	{
-	  DMSG(0,"Nrlolsr::ProcessCommands(): Error connecting to smf_pipe of name %s\n",argv[i]);
-	  printusage = true;
+	  DMSG(1,"Nrlolsr::ProcessCommands(): Warning unable to connect to smf_pipe of name %s\n",argv[i]);
+	  //printusage = true;
 	}
     } else if(!strcmp(argv[i],"smfClientStart")) { // respond by connecting to indicated pipe
       i++;
@@ -1576,6 +1670,13 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
 	printusage = true;
       }
     }
+    else if(!strcmp(argv[i],"-ttl")){
+        i++;
+        if(!SetOlsrTtl(argv[i])){
+            DMSG(0,"Nrlolsr: Error setting ttl to value of %s\n",argv[i]);
+            printusage = true;
+        }
+    }
     else if(!strcmp(argv[i],"-fuzzy")){
       i++;
       if(i==argc){//-fuzzy was last option 
@@ -1679,6 +1780,7 @@ Nrlolsr::ProcessCommands(int argc, const char*const* argv){
     DMSG(0,"                 [-flooding off | s-mpr | ns-mpr | not-sym | simple | ecds | mpr-cds][-smfoffdelay <delay>]\n");
     DMSG(0,"                 [-unicast on | off][-static <time>][-fdelay <MaxForwardDelay>][-unicasthellos on | opt | off\n");
     DMSG(0,"                 [-rpipe <pipename>][-smfClient <pipename>][-sdtClient <pipename>][-guiClient <pipename>]\n");
+    DMSG(0,"                 [-nrlConsole <pipename>]\n");
     DMSG(0,"see readme.help for more info\n");
 #endif
     //DMSG(6,"Exit: Nrlolsr::ProcessCommands(argc,argv)\n");
@@ -1781,7 +1883,11 @@ bool
 Nrlolsr::OnHelloTimeout(ProtoTimer& theTimer)
 {
   DMSG(6,"Enter: Nrlolsr::OnHelloTimeout(theTimer)\n");
-
+  //the sdt update really should have its own timer...
+  if(SDTOn)
+  {
+      SendForwardingInfo();
+  }
   //do hello timer stuff
   if(sendHelloTimerOn){
     if(hello_jitter_timer.IsActive()){
@@ -2062,7 +2168,7 @@ Nrlolsr::SendUnicastHello(OlsrMessage *forwardmessage,ProtoAddress uniAddr){
       forwardlen=helloPadding;
       memset((void*)(forwardbuffer+forwardbuffersize),0,helloPadding-forwardbuffersize);
     }
-    socket.SetTTL(1);
+    socket.SetTTL(ttlvalue);
     socket.SendTo(forwardbuffer,forwardlen,uniAddr);
     olsrpacket2forward.clear();
     olsrpacket2forward.seqno=pseqno++;
@@ -2442,6 +2548,7 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
 	  return;
 	}
 	
+    /*
 	// print recieved message yet again please try and use ethereal parser but you can fall back to this code if something is wrong
 	int j=0;
 	  DMSG(1,"***********RECV MESSAGE*********** at time %f from %s \n",InlineGetCurrentTime(),addr.GetHostString());
@@ -2453,6 +2560,7 @@ Nrlolsr::OnSocketEvent(ProtoSocket &thesocket,ProtoSocket::Event theEvent)
 	  DMSG(1,"\n");
 	  }  
 	  DMSG(1,"***********END RECV ************\n");
+      */
 	//end printing recieved message
 	OlsrPacket olsrpacket;
 	olsrpacket.unpack(buffer,len,ipvMode);
@@ -2868,7 +2976,7 @@ Nrlolsr::DelayedForward(OlsrMessage *forwardmessage, double delay){
       forwardlen=helloPadding;
       memset((void*)(forwardbuffer+forwardbuffersize),0,helloPadding-forwardbuffersize);
     }
-    socket.SetTTL(1);
+    socket.SetTTL(ttlvalue);
     socket.SendTo(forwardbuffer,forwardlen,broadAddr);
     olsrpacket2forward.clear();
     olsrpacket2forward.seqno=pseqno++;
@@ -2880,7 +2988,7 @@ Nrlolsr::OnDelayedForwardTimeout(ProtoTimer &theTimer){
   char forwardbuffer[1500];
   int forwardbuffersize=olsrpacket2forward.pack(forwardbuffer,1500);
   unsigned int forwardlen = forwardbuffersize;
-  socket.SetTTL(1);
+  socket.SetTTL(ttlvalue);
   if(socket.SendTo(forwardbuffer,forwardlen,broadAddr)){
     olsrpacket2forward.clear();
     olsrpacket2forward.seqno=pseqno++;
@@ -3950,21 +4058,21 @@ Nrlolsr::HysFailure(NbrTuple* nb){ //code modified version of nb purge (maybe ca
 
 void
 Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress subnetmask,UINT8 Vtime){
-  //DMSG(6,"Enter: %s's ",myaddress.GetHostString());
-  //DMSG(6,"Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
-  //DMSG(6,"subnetaddr %s, ",subnetaddr.GetHostString());
-  //DMSG(6,"subnetmask %s, Vtime %d)\n",subnetmask.GetHostString(),Vtime);
+  DMSG(6,"Enter: %s's ",myaddress.GetHostString());
+  DMSG(6,"Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
+  DMSG(6,"subnetaddr %s, ",subnetaddr.GetHostString());
+  DMSG(6,"subnetmask %s, Vtime %d)\n",subnetmask.GetHostString(),Vtime);
   
   NbrTuple *tuple = NULL;
   bool notfound = true;
   //check to see if subnet address and mask is same as one that is directly used
   for(tuple=hnaAddresses.PeekInit();tuple!=NULL;tuple=hnaAddresses.PeekNext()){
-	//DMSG(6,"checking to see if local hna route %s/",tuple->N_addr.GetHostString());
-	//DMSG(6,"%s is the same as remote ",tuple->N_2hop_addr.GetHostString());
-	//DMSG(6,"%s/",subnetaddr.GetHostString());
-	//DMSG(6,"%s\n",subnetmask.GetHostString());
+	DMSG(6,"checking to see if local hna route %s/",tuple->N_addr.GetHostString());
+	DMSG(6,"%s is the same as remote ",tuple->N_2hop_addr.GetHostString());
+	DMSG(6,"%s/",subnetaddr.GetHostString());
+	DMSG(6,"%s\n",subnetmask.GetHostString());
     if(subnetaddr.HostIsEqual((tuple->N_addr)) && subnetmask.HostIsEqual((tuple->N_2hop_addr))){
-      DMSG(6,"found match to local hna networks\n");
+      DMSG(6,"found match to local hna networks, not adding\n");
       fflush(stdout);
       //match found don't add hna 
       notfound = false;
@@ -3972,10 +4080,11 @@ Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress sub
   }
   if(notfound) {
     //check for existing hna tuple and refresh if there
+    DMSG(6,"check for existing hna tuple and refresh if there\n");
     tuple = hnaSet.FindObject(gwaddr);
     if(tuple){
       if(tuple->subnetMask.HostIsEqual(subnetmask) && tuple->N_2hop_addr.HostIsEqual(subnetaddr)){
-		//DMSG(5,"found match with first entry\n");
+		DMSG(6,"found hna match with first entry\n");
 		notfound = false;
 		hnaSet.RemoveCurrent();
 		tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
@@ -3984,6 +4093,7 @@ Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress sub
       while((tuple = hnaSet.FindNextObject(gwaddr)) && notfound){
 		if(tuple->N_2hop_addr.HostIsEqual(subnetaddr) && tuple->subnetMask.HostIsEqual(subnetmask)){
 		  // found match remove and replace
+		  DMSG(6,"found hna match\n");
 		  notfound = false;
 		  hnaSet.RemoveCurrent();
 		  tuple->N_time = InlineGetCurrentTime() + mantissatodouble(Vtime);
@@ -3993,6 +4103,7 @@ Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress sub
     }
     if(notfound){
       // add new hna to list
+      DMSG(6,"adding new hna to list\n");
       tuple = new NbrTuple;
       tuple->N_addr=gwaddr;
       tuple->N_2hop_addr=subnetaddr;
@@ -4001,9 +4112,9 @@ Nrlolsr::addHnaInfo(ProtoAddress gwaddr,ProtoAddress subnetaddr,ProtoAddress sub
       hnaSet.QueueObject(tuple);
     }
   }
-  //DMSG(6,"Exit: Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
-  //DMSG(6,"subnetaddr %s, ",subnetaddr.GetHostString());
-  //DMSG(6,"subnetmask %s, Vtime %d)\n",subnetmask.GetHostString(),Vtime);
+  DMSG(6,"Exit: Nrlolsr::addHnaInfo(gwaddr %s, ",gwaddr.GetHostString());
+  DMSG(6,"subnetaddr %s, ",subnetaddr.GetHostString());
+  DMSG(6,"subnetmask %s, Vtime %d)\n",subnetmask.GetHostString(),Vtime);
 } //end Exit: Nrlolsr::addHnaInfo(gwaddr,subnetaddr,subnetmask,Vtime)
 
 void
@@ -4498,6 +4609,7 @@ Nrlolsr::makeRoutingTable(){ //function which selects which routing algorithm to
     } else {
       makeNewRoutingTable();
     }
+    addHnaRoutes();
   }
 }
 
@@ -5891,7 +6003,7 @@ void Nrlolsr::SendForwardingInfo(){
 #ifndef SIMULATE
 void Nrlolsr::SendSDTInfo()
 {
-//    DMSG(6,"Nrlolsr::SendSDTInfo: Enter\n");
+    DMSG(6,"Nrlolsr::SendSDTInfo: Enter\n");
     char buffer[512];
     unsigned int len = 0;
     NbrTuple *nb;
@@ -5965,7 +6077,7 @@ void Nrlolsr::SendSDTInfo()
     } 
 }
 void Nrlolsr::SendForwardingInfo(){
-    //DMSG(6,"Nrlolsr::SendForwardingInfo: Enter\n");
+    DMSG(6,"Nrlolsr::SendForwardingInfo: Enter\n");
     if(SDTOn)
     {
         SendSDTInfo();
@@ -6020,6 +6132,129 @@ void Nrlolsr::SendForwardingInfo(){
   }
 }
 #endif // SIMULATE
+
+void
+Nrlolsr::SendConsoleGraphML(){
+#ifndef SIMULATE
+  if(!console_pipe.IsOpen()){
+    DMSG(0,"Nrlolsr::SendConsoleGraph(); console_pipe is not open!\n");
+    return;
+  }
+  DMSG(2,"Nrlolsr::SendConsoleGraphML(): Warning is not supported at this time\n");
+  char buffer[8192];
+  unsigned int len = 0;
+  strcpy(buffer, "Nrlolsr::SendConsoleGraphML(): Warning graphml output is not supported by nrlolsrd\n\0");
+  len = strlen(buffer);
+  if(!console_pipe.Send(buffer,len)){
+    DMSG(0,"Nrlolsr::SendConsoleGraphML(): console_pipe.Send() error\n");
+  }
+#endif //SIMULATE
+  return;
+}
+void
+Nrlolsr::SendConsoleRoutes(){
+#ifndef SIMULATE
+  if(!console_pipe.IsOpen()){
+    DMSG(0,"Nrlolsr::SendConsoleRoutes(); console_pipe is not open!\n");
+    return;
+  }
+  char buffer[8192];
+  unsigned int len = 0;
+  strcpy(buffer, "routes\n");
+  for(NbrTuple* routePtr=routeTable.PrintPeekInit(); routePtr!=NULL;routePtr=routeTable.PrintPeekNext()){ //adds a line to the buffer
+    if(strlen(buffer)+100>8192){
+      DMSG(0,"Nrlolsr::SendConsoleRoutes(): insufficent buffer space\n");
+      return;
+    }
+    strcat(buffer,routePtr->N_addr.GetHostString());
+    strcat(buffer," ");
+    strcat(buffer,routePtr->N_2hop_addr.GetHostString());
+    strcat(buffer," ");
+    if(dominmax){
+      sprintf(buffer+strlen(buffer),"%f",(double)routePtr->N_minmax);
+    } else if(dospf){
+      sprintf(buffer+strlen(buffer),"%f",(double)routePtr->N_spf);
+    } else {
+      sprintf(buffer+strlen(buffer),"%d",routePtr->hop);
+    }
+    strcat(buffer," ");
+    strcat(buffer,interfaceName);
+    strcat(buffer,"\n");
+  }
+  strcat(buffer,"end-routes\0");
+  len = strlen(buffer);
+  if(!console_pipe.Send(buffer,len)){
+    DMSG(0,"Nrlolsr::SendConsoleRoutes(): console_pipe.Send() error\n");
+  }
+#endif //SIMULATE
+}
+void
+Nrlolsr::SendConsoleRouterID(){
+#ifndef SIMULATE
+  if(!console_pipe.IsOpen()){
+    DMSG(0,"Nrlolsr::SendConsoleRouterID(): console_pipe is not open!\n");
+    return;
+  }
+  char buffer[8192];
+  strcpy(buffer,"RouterIDs\n");
+  strcat(buffer,myaddress.GetHostString());
+  strcat(buffer,"\n");
+  strcat(buffer,"end-RouterIDs\n");
+  unsigned int len = strlen(buffer);
+  if(!console_pipe.Send(buffer,len)){
+    DMSG(0,"Nrlolsr::SendConsoleRouterID(): console_pipe.Send() error\n");
+  }
+#endif //SIMULATE
+}
+void
+Nrlolsr::SendConsoleNeighbors(){
+#ifndef SIMULATE
+  if(!console_pipe.IsOpen()){
+    DMSG(0,"Nrlolsr::SendConsoleNeighbors(): console_pipe is not open!\n");
+    return;
+  }
+  char buffer[8192];
+  strcpy(buffer,"neighbors\n");
+  for(NbrTuple* nb=nbr_list.PrintPeekInit();nb!=NULL;nb=nbr_list.PrintPeekNext()){ //adds a line to the buffer
+    if(strlen(buffer)+100>8192){
+      DMSG(0,"Nrlolsr::SendConsoleNeighbors(): insufficent buffer space.\n");
+      return;
+    }
+    strcat(buffer,nb->N_addr.GetHostString());
+    strcat(buffer," ");
+    switch(nb->N_status){
+    case LOST_LINKv4:
+      strcat(buffer,"LOST ");
+      break;
+    case ASYM_LINKv4:
+      strcat(buffer,"ASYM ");
+      break;
+    case SYM_LINKv4:
+      strcat(buffer,"SYM ");
+      break;
+    case MPR_LINKv4:
+      strcat(buffer,"MPR ");
+      break;
+    case PENDING_LINK:
+      strcat(buffer,"PENDING ");
+      break;
+    default:
+      strcat(buffer,"INVALID ");
+    }
+    sprintf(buffer+strlen(buffer),"%f ",nb->konectivity);
+    if(mprSelectorList.FindObject(nb->N_addr)){
+      strcat(buffer,"TRUE\n");
+    } else {
+      strcat(buffer,"FALSE\n");
+    }
+  }
+  strcat(buffer,"end-neighbors\0");
+  unsigned int len = strlen(buffer);
+  if(!console_pipe.Send(buffer,len)){
+    DMSG(0,"Nrlolsr::SendConsoleNeighbors(): console_pipe.Send() error\n");
+  }
+#endif //NOT SIMULATE
+}
 
 
 void
@@ -6109,6 +6344,7 @@ Nrlolsr::SendGuiNeighbors(){
   }
 #endif //NOT SIMULATE
 }
+
 void 
 Nrlolsr::SendGuiSettings(){
 #ifndef SIMULATE
@@ -6262,6 +6498,37 @@ Nrlolsr::printNbrs(){
 #endif //SIMULATE
 }
 
+void
+Nrlolsr::UpdateSDTLinks(){
+#ifndef SIMULATE
+#ifdef UNIX
+  NbrTuple *tuple,*nb;
+  char *trashCharPtr = NULL;
+  for(nb=nbr_list.PrintPeekInit();nb!=NULL;nb=nbr_list.PrintPeekNext()){
+    if(nb->N_status==SYM_LINKv4 || nb->N_status==MPR_LINKv4){
+      fprintf(stdout,"%s -> ",myaddress.GetHostString());
+      fprintf(stdout,"%s",nb->N_addr.GetHostString());      
+      if(dominmax || dospf){ //I have extra information to send out
+	fprintf(stdout,",%d",(int)(nb->konectivity*100));
+      }
+      fprintf(stdout,"\n");
+    }
+  }
+  for(tuple=topologySet.PrintPeekInit();tuple!=NULL;tuple=topologySet.PrintPeekNext()){
+    if(tuple!=NULL){
+      fprintf(stdout,"%s -> ",tuple->N_addr.GetHostString());
+      fprintf(stdout,"%s",tuple->N_2hop_addr.GetHostString());
+      if(dominmax){ //I have extra information to send out
+        fprintf(stdout,",%d",(int)(((float)tuple->N_minmax)/2.55));
+      } else if(dospf){
+        fprintf(stdout,",%d",(int)(((float)tuple->N_spf)/2.55));
+      }
+      fprintf(stdout,"\n");
+    }
+  }
+#endif //UNIX
+#endif //SIMULATE
+}
 
 void
 Nrlolsr::printLinks(){

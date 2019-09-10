@@ -167,7 +167,7 @@ NrlolsrAgent::recv(Packet *p,Handler *handle) //this can be called to recv eithe
 		  protolibManetKernelPointer->forward(p,nextHop);
 		  return;
 		} else {
-		  DMSG(0,"nrlolsrAgent dropping packet because nextHop is INVALID couldn't find route to %d\n",ih->daddr());
+		  DMSG(4,"nrlolsrAgent dropping packet because nextHop is INVALID couldn't find route to %d\n",ih->daddr());
 		}
 		//      fprintf(stdout,"nrlolsrAgent dropping packet because nextHop is INVALID couldn't find route to %d\n",ih->daddr());
 	  } else if(nextHop==ch->prev_hop_) {

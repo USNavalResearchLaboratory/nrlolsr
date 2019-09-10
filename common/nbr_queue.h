@@ -128,5 +128,11 @@ class NbrTuple
     private:
 	struct linknode *parent;
 };
+class OlsrLink : ProtoTree::Item
+{
+    ProtoAddress N_addr;
+    ProtoAddress N_2hop_addr;
+    double metric;
+};
 
 #endif // _NBR_QUEUE

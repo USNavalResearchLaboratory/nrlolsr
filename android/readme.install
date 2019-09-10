@@ -1,0 +1,13 @@
+Bilding nrlolsrd for Android
+=============================
+
+* Install the latest Android NDK (tested with r9d).
+* Ensure recent protolib snapshot is in root nrlolsr directory.
+* Run "ndk-build" from this directory (i.e. nrlolsrd/android/)
+* nrlolsrd binaries will be in the "libs" directory.
+
+NOTE: You'll probably want to set the default multicast route to your phone's
+wireless device.  Find out your phone's wireless device by running "netctl".
+Then, (as root on the phone):
+
+    ip route add 224.0.0.0/4 dev wlan0

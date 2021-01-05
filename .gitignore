@@ -1,9 +1,12 @@
 # protolib
-protolib/
+protolib
 
 # build executables
 unix/nrlolsrd
 unix/olsrgui
+
+# build object files
+*.o
 
 # OS generated files #
 .DS_Store
